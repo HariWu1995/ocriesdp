@@ -2,8 +2,10 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
-from src.models.backbones.layoutlm_v3 import (BertPreTrainedModel, LayoutlmConfig, LayoutlmModel,
-                                              LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP, )
+from models.backbones.layoutlm_v3 import (
+    BertPreTrainedModel, LayoutlmConfig, LayoutlmModel,
+    LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP, 
+)
 
 
 class TokenClassification(BertPreTrainedModel):

@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.models.losses.utils import is_parallel
-from src.models.heads.multitask.YOLO.box import box_iou, bbox_iou, xywh2xyxy
+from models.losses.utils import is_parallel
+from models.heads.multitask.YOLO.box import box_iou, bbox_iou, xywh2xyxy
 
 
 EPS = 1e-7

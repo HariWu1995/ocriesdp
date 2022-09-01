@@ -9,11 +9,12 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from src.models.layers import Embeddings2D, BertEncoder2D
-from src.models.heads.dependency.SPADE.postprocess import gen_parses, pred_label
-from src.models.heads.dependency.SPADE.periprocess import (
+from models.utils import update_parts_of_model
+from models.layers import Embeddings2D, BertEncoder2D
+from models.heads.dependency.SPADE.postprocess import gen_parses, pred_label
+from models.heads.dependency.SPADE.periprocess import (
     embed_fields, select_header_vec, collect_features_batchwise, get_pretrained_transformer, 
-    get_char_for_detokenization, get_local_rank, update_parts_of_model, 
+    get_char_for_detokenization, get_local_rank, 
     check_consistency_between_backbone_and_encoder, RelationTaggerUtils as RLUtils
 )
 

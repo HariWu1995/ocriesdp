@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.models.losses.detection import DiceLoss
+from models.losses.detection import DiceLoss
 
 
 EPS = 1e-7
@@ -112,7 +112,7 @@ class PGLoss(nn.Module):
         f_char = torch.transpose(f_char, [0, 2, 3, 1])
         tcl_pos = torch.reshape(tcl_pos, [-1, 3]).int()
         f_tcl_char = torch.gather(f_char, tcl_pos, dim=0)
-        f_tcl_char = torch.reshape(f_tcl_char, [-1, 64, 37])  # len(Lexicon_Table)+1
+        f_tcl_char = torch.reshape(f_tcl_char, [-1, 64, 37])  # len(Lexicon_Table) + 1
         f_tcl_char_fg, f_tcl_char_bg = torch.split(f_tcl_char, split_size_or_sections=[36, 1], dim=2)
         f_tcl_char_bg = f_tcl_char_bg * tcl_mask + (1.0 - tcl_mask) * 20.0
         
@@ -181,19 +181,19 @@ def org_tcl_rois(batch_size, pos_lists, pos_masks, label_lists, tcl_len):
 
 def preprocess_pgloss(label_list, pos_list, pos_mask, max_text_len, max_bbox_count, pad_num, tcl_len):
     label_list = label_list.numpy()
-    batch, _, _, _ = label_list.shape
+    B, _, _, _ = label_list.shape
     pos_list = pos_list.numpy()
     pos_mask = pos_mask.numpy()
     pos_list_t = []
     pos_mask_t = []
     label_list_t = []
-    for i in range(batch):
+    for i in range(B):
         for j in range(max_bbox_count):
             if pos_mask[i, j].any():
                 pos_list_t.append(pos_list[i][j])
                 pos_mask_t.append(pos_mask[i][j])
                 label_list_t.append(label_list[i][j])
-    pos_list, pos_mask, label_list = org_tcl_rois(batch, pos_list_t, pos_mask_t, label_list_t, tcl_len)
+    pos_list, pos_mask, label_list = org_tcl_rois(B, pos_list_t, pos_mask_t, label_list_t, tcl_len)
 
     label = []
     tt = [l.tolist() for l in label_list]
@@ -208,7 +208,8 @@ def preprocess_pgloss(label_list, pos_list, pos_mask, max_text_len, max_bbox_cou
     label = torch.tensor(label).int()
     pos_list = torch.tensor(np.array(pos_list))
     pos_mask = torch.tensor(np.array(pos_mask))
-    label_list = torch.squeeze(torch.tensor(np.array(label_list)), dim=2).int()
+    label_list = torch.squeeze(
+                torch.tensor(np.array(label_list)), dim=2).int()
 
     return pos_list, pos_mask, label_list, label
 

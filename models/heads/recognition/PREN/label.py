@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.data.label import RecLabelEncoder
+from data.label import RecLabelEncoder
 
 
 class PRENLabelEncoder(RecLabelEncoder):

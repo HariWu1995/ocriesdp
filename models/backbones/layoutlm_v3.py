@@ -5,7 +5,7 @@ from torch import nn
 
 from transformers import BertConfig, BertModel, BertPreTrainedModel
 
-from src.models.layers import Embeddings2D
+from models.layers import Embeddings2D
 
 LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP = {}
 LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP = {}

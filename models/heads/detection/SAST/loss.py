@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from src.models.losses.detection import DiceLoss
+from models.losses.detection import DiceLoss
 
 
 EPS = 1e-7

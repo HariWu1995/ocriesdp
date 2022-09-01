@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from src.data.augmentation_utils import crop_area, is_poly_outside_rect
+from data.augmentation_utils import crop_area, is_poly_outside_rect
 
 
 class EastRandomCropData(object):

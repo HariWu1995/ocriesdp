@@ -2,9 +2,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.models.backbones.resnet import build_resnet
-from src.models.heads.multitask.PGNet.model import PGNet
-from src.models.heads.multitask.PGNet.loss import PGLoss
+from models.backbones.resnet import build_resnet
+from models.heads.multitask.PGNet.model import PGNet
+from models.heads.multitask.PGNet.loss import PGLoss
 
 
 class MultitaskOcrTrainer:

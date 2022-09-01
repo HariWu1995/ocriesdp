@@ -2,9 +2,9 @@ import sys
 import numpy as np
 import torch
 
-from src.models.heads.multitask.PGNet.postprocess_common import get_dict
-from src.models.heads.multitask.PGNet.postprocess_fast import generate_pivot_list_fast, restore_poly
-from src.models.heads.multitask.PGNet.postprocess_slow import generate_pivot_list_slow, point_pair2poly, expand_poly_along_width
+from models.heads.multitask.PGNet.postprocess_common import get_dict
+from models.heads.multitask.PGNet.postprocess_fast import generate_pivot_list_fast, restore_poly
+from models.heads.multitask.PGNet.postprocess_slow import generate_pivot_list_slow, point_pair2poly, expand_poly_along_width
 
 
 class PostProcess(object):

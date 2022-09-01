@@ -9,7 +9,7 @@ import numpy as np
 from itertools import groupby
 from skimage.morphology._skeletonize import thin
 
-from src.models.heads.multitask.PGNet.postprocess_common import sort_and_expand_with_direction_v2
+from models.heads.multitask.PGNet.postprocess_common import sort_and_expand_with_direction_v2
 
 
 def instance_ctc_greedy_decoder(gather_info, logits_map, pts_num=4):

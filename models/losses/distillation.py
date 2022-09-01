@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from src.models.losses.common import DMLLoss, DistanceLoss
-from src.models.heads.detection.DB.loss import DBLoss
-from src.models.heads.recognition.CTC.loss import CTCLoss
-from src.models.heads.recognition.SAR.loss import SARLoss
+from models.losses.common import DMLLoss, DistanceLoss
+from models.heads.detection.DB.loss import DBLoss
+from models.heads.recognition.CTC.loss import CTCLoss
+from models.heads.recognition.SAR.loss import SARLoss
 
 
 def aggregate_loss(loss_dict):

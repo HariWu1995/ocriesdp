@@ -108,10 +108,10 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, depth, kernel: int = 3, output_channels: int=512):
+    def __init__(self, block, depth, output_channels: int=2048):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=kernel, stride=2, padding=3, bias=False)   
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)   
         self.bn1 = nn.BatchNorm2d(64)
         self.relu1 = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=0, ceil_mode=True)  # change
@@ -121,8 +121,8 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, depth[2], stride=2)
         self.layer4 = self._make_layer(block, 512, depth[3], stride=2) # stride = 1: slightly better but slower
 
-        self.conv2 = nn.Conv2d(512 * block.expansion, output_channels, kernel_size=kernel, stride=1, padding=1, bias=False)  # add
-        self.bn2 = nn.BatchNorm2d(512)
+        self.conv2 = nn.Conv2d(512 * block.expansion, output_channels, kernel_size=7, stride=1, padding=1, bias=False)  # add
+        self.bn2 = nn.BatchNorm2d(output_channels)
         self.relu2 = nn.ReLU()
 
         self._init_weights()
@@ -213,7 +213,7 @@ def build_resnet(output_channels: int=512, variant_depth: int=50, load_pretraine
     if variant_depth not in model_architecture.keys():
         variant_depth = 50
     block, depth = model_architecture.get(variant_depth, (Bottleneck, [3, 4,  6, 3], ))
-    model = ResNet(block, depth, (7 if load_pretrained else 3), output_channels)
+    model = ResNet(block, depth, output_channels)
     if load_pretrained and (variant_depth in pretrained_models.keys()):
         model.load_state_dict(model_zoo.load_url(pretrained_models[variant_depth]), strict=False)
     return model

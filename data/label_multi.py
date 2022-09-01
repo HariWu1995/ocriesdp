@@ -3,9 +3,9 @@ import numpy as np
 from copy import deepcopy
 from shapely.geometry import LineString, Point, Polygon
 
-from src.data.label import RecLabelEncoder
-from src.models.heads.recognition.SAR.label import SARLabelEncoder
-from src.models.heads.recognition.CTC.label import CTCLabelEncoder
+from data.label import RecLabelEncoder
+from models.heads.recognition.SAR.label import SARLabelEncoder
+from models.heads.recognition.CTC.label import CTCLabelEncoder
 
 
 class MultiLabelEncoder(RecLabelEncoder):

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from src.models.losses.common import ACELoss, CenterLoss
+from models.losses.common import ACELoss, CenterLoss
 
 
 class CTCLoss(nn.Module):

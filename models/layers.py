@@ -8,6 +8,24 @@ import pytorch_lightning as pl
 from transformers.activations import ACT2FN
 
 
+class Debug(nn.Module):
+    
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+
+    def forward(self, x):
+        print(f'{self.name}')
+        print(f'type: {type(x)}, len: {len(x)}')
+        print(f'shapes: {self._get_shape_recurse(x)}')
+        return x
+
+    def _get_shape_recurse(self, x):
+        if isinstance(x, torch.Tensor):
+            return x.shape
+        return [self._get_shape_recurse(a) for a in x]
+
+
 class PositionalEncoding(nn.Module):
 
     def __init__(self, d_model, dropout: float=0.1, max_seq_len: int=100):

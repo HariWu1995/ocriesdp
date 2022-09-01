@@ -8,7 +8,7 @@ import math
 import numpy as np
 from skimage.morphology._skeletonize import thin
 
-from src.models.heads.multitask.PGNet.postprocess_common import (
+from models.heads.multitask.PGNet.postprocess_common import (
     softmax, ctc_greedy_decoder, add_id, extract_main_direction, 
     sort_and_expand_with_direction_v2, sort_with_direction,
 )

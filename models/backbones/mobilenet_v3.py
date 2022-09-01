@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-from src.models.activations import HardSigmoid, HardSwish
+from models.activations import HardSigmoid, HardSwish
 
 
 __all__ = ['MobileNetV3', 'mobilenetv3']

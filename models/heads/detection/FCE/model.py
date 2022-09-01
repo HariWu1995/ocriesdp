@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 from functools import partial
 
-from src.models.losses.utils import multi_apply
+from models.losses.utils import multi_apply
 
 
 class FCEHead(nn.Module):

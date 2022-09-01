@@ -5,7 +5,7 @@ from collections import Counter
 import numpy as np
 import torch
 
-from src.models.heads.dependency.SPADE.postprocess import get_init_stats_receipt, get_statistics_receipt, summary_receipt
+from models.heads.dependency.SPADE.postprocess import get_init_stats_receipt, get_statistics_receipt, summary_receipt
 
 
 get_statistics_receipt_v1 = get_statistics_receipt

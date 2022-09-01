@@ -12,7 +12,7 @@ import imgaug
 import imgaug.augmenters as iaa
 import pyclipper
 
-from src.data.augmentation_utils import get_rotate_crop_image, rotate_bbox, is_poly_outside_rect
+from data.augmentation_utils import get_rotate_crop_image, rotate_bbox, is_poly_outside_rect
 
 
 class AugmenterBuilder(object):

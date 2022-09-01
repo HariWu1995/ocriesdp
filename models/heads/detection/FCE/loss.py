@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from src.models.losses.utils import multi_apply
+from models.losses.utils import multi_apply
 
 
 class FCELoss(nn.Module):

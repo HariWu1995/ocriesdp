@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.data.datasets import infer_statistics
-from src.data.label_multi import OCRLabelEncoder as LabelEncoder
+from data.ops import DecodeImage
+from data.datasets import infer_statistics
+from data.label_multi import OCRLabelEncoder as LabelEncoder
 
 
 EPS = 1e-7
@@ -32,6 +33,7 @@ class Dataloader:
         self.batch_size = batch_size
 
         processor_config.update(dict(batch_size=batch_size))
+        self.ImageDecoder = DecodeImage(img_mode='RGB', channel_first=False)
         self.Preprocessor = PGProcessor(config_path, **processor_config)
         self.LabelEncoder = LabelEncoder(encode_text=True, use_space_char=True,
                                         max_text_len=self.Preprocessor.max_text_len, 
@@ -50,10 +52,11 @@ class Dataloader:
         data = []
         for image_id in self.indices[start_index:end_index]:
             image_data = {
-                'image' : Image.open(self.image_df.loc[image_id, 'image_path']),
+                'image' : Image.open(self.image_df.loc[image_id, 'image_path']).convert('RGB'),
                 'label' : { column : self.bbox_df.loc[image_id, column].values.tolist() 
                         for column in ['polygons', 'text'] },
             }
+            image_data = self.ImageDecoder(image_data)
             image_data = self.LabelEncoder(image_data)
             image_data = self.Preprocessor(image_data)
             if image_data is None:
@@ -103,7 +106,7 @@ class PGProcessor(object):
 
     def __call__(self, data):
         input_size = self.input_size
-        image      = data['image'].convert('RGB')
+        image      = data['image']
         text_polys = data['polys']
         text_tags  = data['ignore_tags']
         text_strs  = data['texts']

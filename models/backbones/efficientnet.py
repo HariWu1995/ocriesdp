@@ -7,8 +7,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
 
-from src.models.activations import Swish, SwishMemoryEfficient
-from src.models.backbones.efficientnet_utils import (
+from models.activations import Swish, SwishMemoryEfficient
+from models.backbones.efficientnet_utils import (
     round_filters, round_repeats, drop_connect,
     get_conv2d_same_padding, get_maxPool2d_same_padding,
     get_model_params, efficientnet_params, calculate_output_image_size,

@@ -9,9 +9,9 @@ import torch
 import torch.nn.functional as F
 import transformers
 
-from src.utils.io import write_json, write_jsonl
-from src.models.utils import count_model_weights, update_parts_of_model
-from src.models.heads.dependency.SPADE.metrics import cal_tp_fn_fp_of_edges, cal_parsing_score
+from utils.io import write_json, write_jsonl
+from models.utils import count_model_weights
+from models.heads.dependency.SPADE.metrics import cal_tp_fn_fp_of_edges, cal_parsing_score
 
 
 def select_header_vec(batch_size, lmax_boxes, header_ids, l_boxes, idim, encoded, token_lv_boxing):

@@ -4,8 +4,8 @@ import re
 import math
 import torch
 
-from src.models.layers import (Conv2dDynamicSamePadding, MaxPool2dDynamicSamePadding,
-                               Conv2dStaticSamePadding, MaxPool2dStaticSamePadding, )
+from models.layers import (Conv2dDynamicSamePadding, MaxPool2dDynamicSamePadding,
+                            Conv2dStaticSamePadding, MaxPool2dStaticSamePadding, )
 
 # Parameters for the entire model (stem, all blocks, and head)
 GlobalParams = namedtuple('GlobalParams', ['width_coefficient', 'depth_coefficient', 'image_size', 'dropout_rate',

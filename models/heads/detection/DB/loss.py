@@ -1,6 +1,6 @@
 from torch import nn
 
-from src.models.losses.detection import DiceLoss, MaskedL1Loss, BalanceLoss
+from models.losses.detection import DiceLoss, MaskedL1Loss, BalanceLoss
 
 
 class DBLoss(nn.Module):

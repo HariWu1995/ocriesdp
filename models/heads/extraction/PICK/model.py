@@ -13,11 +13,11 @@ from torch.nn import functional as F
 from torchvision.ops import roi_align
 from torchvision.ops import roi_pool
 
-from src.models.backbones.resnet import build_resnet
-from src.models.graphs import GraphLearningConvolutionNetwork as GLCN
-from src.models.layers import BidirLSTM
-from src.models.heads.classification.CRF.model import ConditionalRandomField as CRF
-from src.models.heads.extraction.PICK.utils import keys_vocab_cls, entities_iob_vocab_cls
+from models.backbones.resnet import build_resnet
+from models.graphs import GraphLearningConvolutionNetwork as GLCN
+from models.layers import BidirLSTM
+from models.heads.classification.CRF.model import ConditionalRandomField as CRF
+from models.heads.extraction.PICK.utils import keys_vocab_cls, entities_iob_vocab_cls
 
 
 class Encoder(nn.Module):
