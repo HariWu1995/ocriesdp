@@ -1,6 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from transformers.activations import ACT2FN
+
+
+def get_activation_fn(activation: str):
+    if hasattr(F, activation):
+        return getattr(F, activation)
+    elif activation in ACT2FN.keys():
+        return ACT2FN[activation]
+    else:
+        return nn.Identity()
 
 
 class HardSwish(nn.Module):

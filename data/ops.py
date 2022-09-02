@@ -471,3 +471,5 @@ class ResizeNormalize(object):
         img_numpy = np.array(img).astype("float32")
         img_numpy = img_numpy.transpose((2, 0, 1)) / 255
         return img_numpy
+
+

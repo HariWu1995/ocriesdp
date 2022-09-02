@@ -1,329 +1,152 @@
-import os
-import string
+import pickle
 from pathlib import Path
 
-import math
 import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
-
-import cv2
+from detectron2.utils.visualizer import Visualizer
+import matplotlib.colors as mplc
+import matplotlib.font_manager as mfm
 
 
 DEFAULT_FONT = Path(__file__).parent / "fonts/simfang.ttf"
 
 
-def demo_ocr(image_path: str or Path, image_labels: pd.DataFrame):
-    if not os.path.isfile(image_path):
-        print(f"Cannot file any file @ {image_path}")
-        return None
+class TextVisualizer(Visualizer):
 
-    image = Image.open(image_path).convert('RGBA')
-    overlay = Image.new('RGBA', image.size, (255,255,255,0))
-    idraw = ImageDraw.Draw(overlay, 'RGBA')
-
-    for _, (bbox, text) in image_labels[['polygons', 'text']].iterrows():
-        bbox = np.array(bbox)
-        try:
-            text = str(text)
-        except:
-            text = '###'
-        print(text, bbox)
-        # font = ImageFont.truetype("arial.ttf", 7)
-
-        if len(bbox) == 4:
-            idraw.polygon([tuple(bb) for bb in bbox], fill=(255, 0, 0, 127,), 
-                                                   outline=(255, 0, 0, 0),)
-        elif len(bbox) == 2:
-            idraw.rectangle([tuple(bb) for bb in bbox], fill=(255, 0, 0, 127,), 
-                                                     outline=(255, 0, 0, 0),)
+    def __init__(self, image, metadata, instance_mode, cfg):
+        Visualizer.__init__(self, image, metadata, instance_mode=instance_mode)
+        self.vocab_size              = cfg.MODEL.BATEXT.VOCAB_SIZE
+        self.use_customer_dictionary = cfg.MODEL.BATEXT.CUSTOM_DICT
+        self.use_polygon             = cfg.MODEL.TRANSFORMER.USE_POLYGON
+        if not self.use_customer_dictionary:
+            self.CTLABELS = [' ','!','"','#','$','%','&','\'','(',')','*','+',',','-','.','/','0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?','@','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','[','\\',']','^','_','`','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','{','|','}','~']
         else:
-            continue
-        idraw.text((bbox.mean(axis=0).astype(int).tolist()), 
-                text.encode('latin-1', "ignore"), fill=(255, 0, 0, 255,))
+            with open(self.use_customer_dictionary, 'rb') as fp:
+                self.CTLABELS = pickle.load(fp)
+        assert (self.vocab_size-1) == len(self.CTLABELS), \
+            f"vocab_size is not matched dictionary size, got {self.vocab_size-1} and {len(self.CTLABELS)}."
 
-    return Image.alpha_composite(image, overlay).convert('RGB')
-
-
-def resize_img(img, input_size=600):
-    """
-    resize image and limit the longest side of the image to input_size
-    """
-    img = np.array(img)
-    im_shape = img.shape
-    im_size_max = np.max(im_shape[0:2])
-    im_scale = float(input_size) / float(im_size_max)
-    img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale)
-    return img
-
-
-def draw_box_txt(bbox, text, draw, font, font_size, color):
-    # draw ocr results outline
-    bbox = ((bbox[0], bbox[1]), (bbox[2], bbox[3]))
-    draw.rectangle(bbox, fill=color)
-
-    # draw ocr results
-    start_y = max(0, bbox[0][1] - font_size)
-    tw = font.getsize(text)[0]
-    draw.rectangle([(bbox[0][0]+1, start_y), (bbox[0][0]+tw+1, start_y+font_size)], fill=(0, 0, 255))
-    draw.text((bbox[0][0] + 1, start_y), text, fill=(255, 255, 255), font=font)
-
-
-def draw_results_SER(image, ocr_results, font_path=DEFAULT_FONT, font_size=18):
-    """
-    Draw results of Semantic Entity Recognition [SER]
-    """
-    np.random.seed(2021)
-    color = (np.random.permutation(range(255)),
-             np.random.permutation(range(255)),
-             np.random.permutation(range(255)),)
-    color_map = {
-        idx: (color[0][idx], color[1][idx], color[2][idx]) for idx in range(1, 255)
-    }
-    if isinstance(image, np.ndarray):
-        image = Image.fromarray(image)
-    elif isinstance(image, str) and os.path.isfile(image):
-        image = Image.open(image).convert('RGB')
-    img_new = image.copy()
-    draw = ImageDraw.Draw(img_new)
-
-    font = ImageFont.truetype(font_path, font_size, encoding="utf-8")
-    for ocr_info in ocr_results:
-        if ocr_info["pred_id"] not in color_map:
-            continue
-        color = color_map[ocr_info["pred_id"]]
-        text = "{}: {}".format(ocr_info["pred"], ocr_info["text"])
-
-        draw_box_txt(ocr_info["bbox"], text, draw, font, font_size, color)
-
-    img_new = Image.blend(image, img_new, 0.5)
-    return np.array(img_new)
-
-
-def draw_results_recognition(image, result, font_path=DEFAULT_FONT, font_size=18):
-    np.random.seed(0)
-    if isinstance(image, np.ndarray):
-        image = Image.fromarray(image)
-    elif isinstance(image, str) and os.path.isfile(image):
-        image = Image.open(image).convert('RGB')
-    img_new = image.copy()
-    draw = ImageDraw.Draw(img_new)
-
-    font = ImageFont.truetype(font_path, font_size, encoding="utf-8")
-    color_head = (0, 0, 255)
-    color_tail = (255, 0, 0)
-    color_line = (0, 255, 0)
-
-    for ocr_info_head, ocr_info_tail in result:
-        draw_box_txt(ocr_info_head["bbox"], ocr_info_head["text"], draw, font, font_size, color_head)
-        draw_box_txt(ocr_info_tail["bbox"], ocr_info_tail["text"], draw, font, font_size, color_tail)
-
-        center_head = ((ocr_info_head['bbox'][0] + ocr_info_head['bbox'][2]) // 2,
-                       (ocr_info_head['bbox'][1] + ocr_info_head['bbox'][3]) // 2,)
-        center_tail = ((ocr_info_tail['bbox'][0] + ocr_info_tail['bbox'][2]) // 2,
-                       (ocr_info_tail['bbox'][1] + ocr_info_tail['bbox'][3]) // 2,)
-
-        draw.line([center_head, center_tail], fill=color_line, width=5)
-
-    img_new = Image.blend(image, img_new, 0.5)
-    return np.array(img_new)
-
-
-def draw_results_end2end(dt_boxes, strs, img_path):
-    src_im = cv2.imread(img_path)
-    for box, str in zip(dt_boxes, strs):
-        box = box.astype(np.int32).reshape((-1, 1, 2))
-        cv2.polylines(src_im, [box], True, color=(255, 255, 0), thickness=2)
-        cv2.putText(src_im, str, org=(int(box[0, 0, 0]), int(box[0, 0, 1])),
-                    fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=0.7, color=(0, 255, 0), thickness=1)
-    return src_im
-
-
-def draw_results_detection(dt_boxes, img_path):
-    src_im = cv2.imread(img_path)
-    for box in dt_boxes:
-        box = np.array(box).astype(np.int32).reshape(-1, 2)
-        cv2.polylines(src_im, [box], True, color=(255, 255, 0), thickness=2)
-    return src_im
-
-
-def draw_results_ocr(image, boxes, txts=None, scores=None, drop_score=0.5, font_path=DEFAULT_FONT):
-    """
-    Visualize the results of OCR detection and recognition
-
-    Parameters
-    ----------
-    image(Image|array): RGB image
-    boxes(list): boxes with shape(N, 4, 2)
-    txts(list): the texts
-    scores(list): txxs corresponding scores
-    drop_score(float): only scores greater than drop_threshold will be visualized
-    font_path: the path of font which is used to draw text
-    
-    Returns
-    -------
-    the visualized img
-    """
-    if scores is None:
-        scores = [1] * len(boxes)
-    box_num = len(boxes)
-    for i in range(box_num):
-        if scores is not None and (scores[i] < drop_score or math.isnan(scores[i])):
-            continue
-        box = np.reshape(np.array(boxes[i]), [-1, 1, 2]).astype(np.int64)
-        image = cv2.polylines(np.array(image), [box], True, (255, 0, 0), 2)
-    if txts is not None:
-        img = np.array(resize_img(image, input_size=600))
-        txt_img = text_visual(txts, scores, img_h=img.shape[0], img_w=600, threshold=drop_score, font_path=font_path)
-        img = np.concatenate([np.array(img), np.array(txt_img)], axis=1)
-        return img
-    return image
-
-
-def draw_ocr_box_txt(image, boxes, txts, scores=None, drop_score=0.5, font_path=DEFAULT_FONT):
-    h, w = image.height, image.width
-    img_left = image.copy()
-    img_right = Image.new('RGB', (w, h), (255, 255, 255))
-
-    import random
-
-    random.seed(0)
-    draw_left = ImageDraw.Draw(img_left)
-    draw_right = ImageDraw.Draw(img_right)
-    for idx, (box, txt) in enumerate(zip(boxes, txts)):
-        if scores is not None and scores[idx] < drop_score:
-            continue
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        draw_left.polygon(box, fill=color)
-        draw_right.polygon([box[0][0], box[0][1], 
-                            box[1][0], box[1][1], 
-                            box[2][0], box[2][1], 
-                            box[3][0], box[3][1],], outline=color)
-        box_height = math.sqrt((box[0][0] - box[3][0])**2 + (box[0][1] - box[3][1])**2)
-        box_width = math.sqrt((box[0][0] - box[1][0])**2 + (box[0][1] - box[1][1])**2)
-
-        if box_height > 2 * box_width:
-            font_size = max(int(box_width * 0.9), 10)
-            font = ImageFont.truetype(font_path, font_size, encoding="utf-8")
-            cur_y = box[0][1]
-            for c in txt:
-                char_size = font.getsize(c)
-                draw_right.text((box[0][0]+3, cur_y), c, fill=(0, 0, 0), font=font)
-                cur_y += char_size[1]
+    def draw_instance_predictions(self, predictions):
+        if self.use_polygon:
+            ctrl_pnts = predictions.polygons.numpy()
         else:
-            font_size = max(int(box_height * 0.8), 10)
-            font = ImageFont.truetype(font_path, font_size, encoding="utf-8")
-            draw_right.text([box[0][0], box[0][1]], txt, fill=(0, 0, 0), font=font)
-    img_left = Image.blend(image, img_left, 0.5)
-    img_show = Image.new('RGB', (w * 2, h), (255, 255, 255))
-    img_show.paste(img_left, (0, 0, w, h))
-    img_show.paste(img_right, (w, 0, w * 2, h))
-    return np.array(img_show)
+            ctrl_pnts = predictions.beziers.numpy()
+        scores = predictions.scores.tolist()
+        recs = predictions.recs
 
+        self.overlay_instances(ctrl_pnts, recs, scores)
 
-def text_visual(texts, scores, img_h=400, img_w=600, threshold=0., font_path=DEFAULT_FONT):
-    """
-    create new blank img and draw txt on it
+        return self.output
 
-    Parameters
-    ----------
-        texts(list): the text will be draw
-        scores(list|None): corresponding score of each txt
-        img_h(int): the height of blank img
-        img_w(int): the width of blank img
-        font_path: the path of font which is used to draw text
-    
-    Returns
-    -------
-    """
-    if scores is not None:
-        assert len(texts) == len(
-            scores), "The number of txts and corresponding scores must match"
+    def _ctrl_pnt_to_poly(self, pnt):
+        if self.use_polygon:
+            points = pnt.reshape(-1, 2)
+        else:
+            # bezier to polygon
+            u = np.linspace(0, 1, 20)
+            pnt = pnt.reshape(2, 4, 2).transpose(0, 2, 1).reshape(4, 4)
+            points = np.outer(         (1 - u) ** 3 , pnt[:, 0]) \
+                   + np.outer(3 * u * ((1 - u) ** 2), pnt[:, 1]) \
+                   + np.outer(3 * (u ** 2) * (1 - u), pnt[:, 2]) \
+                   + np.outer(              u  ** 3 , pnt[:, 3])
+            points = np.concatenate((points[:, :2], points[:, 2:]), axis=0)
 
-    def create_blank_img():
-        blank_img = np.ones(shape=[img_h, img_w], dtype=np.int8) * 255
-        blank_img[:, img_w - 1:] = 0
-        blank_img = Image.fromarray(blank_img).convert("RGB")
-        draw_txt = ImageDraw.Draw(blank_img)
-        return blank_img, draw_txt
+        return points
 
-    blank_img, draw_txt = create_blank_img()
+    def _decode_recognition(self, rec):
+        s = ''
+        for c in rec:
+            c = int(c)
+            if c < self.vocab_size - 1:
+                if self.vocab_size == 96:
+                    s += self.CTLABELS[c]
+                else:
+                    s += str(chr(self.CTLABELS[c]))
+            elif c == self.vocab_size - 1:
+                s += u'口'
+        return s
 
-    font_size = 20
-    txt_color = (0, 0, 0)
-    font = ImageFont.truetype(font_path, font_size, encoding="utf-8")
-
-    gap = font_size + 5
-    txt_img_list = []
-    count, index = 1, 0
-    for idx, txt in enumerate(texts):
-        index += 1
-        if scores[idx] < threshold or math.isnan(scores[idx]):
-            index -= 1
-            continue
-        first_line = True
-        while str_count(txt) >= img_w // font_size - 4:
-            tmp = txt
-            txt = tmp[:img_w // font_size - 4]
-            if first_line:
-                new_txt = str(index) + ': ' + txt
-                first_line = False
+    def _ctc_decode_recognition(self, rec):
+        # ctc decoding
+        last_char = False
+        s = ''
+        for c in rec:
+            c = int(c)
+            if c < self.vocab_size - 1:
+                if last_char != c:
+                    if self.vocab_size == 96:
+                        s += self.CTLABELS[c]
+                        last_char = c
+                    else:
+                        s += str(chr(self.CTLABELS[c]))
+                        last_char = c
+            elif c == self.vocab_size - 1:
+                s += u'口'
             else:
-                new_txt = '    ' + txt
-            draw_txt.text((0, gap * count), new_txt, txt_color, font=font)
-            txt = tmp[img_w // font_size - 4:]
-            if count >= img_h // gap - 1:
-                txt_img_list.append(np.array(blank_img))
-                blank_img, draw_txt = create_blank_img()
-                count = 0
-            count += 1
-        
-        if first_line:
-            new_txt = str(index) + ': ' + txt + '   ' + '%.3f' % (scores[idx])
-        else:
-            new_txt = "  " + txt + "  " + '%.3f' % (scores[idx])
-        draw_txt.text((0, gap * count), new_txt, txt_color, font=font)
+                last_char = False
+        return s
 
-        # whether add new blank img or not
-        if count >= img_h // gap - 1 and idx + 1 < len(texts):
-            txt_img_list.append(np.array(blank_img))
-            blank_img, draw_txt = create_blank_img()
-            count = 0
-        count += 1
+    def overlay_instances(self, ctrl_pnts, recs, scores, alpha=0.5):
+        color = (0.1, 0.2, 0.5)
 
-    txt_img_list.append(np.array(blank_img))
-    if len(txt_img_list) == 1:
-        blank_img = np.array(txt_img_list[0])
-    else:
-        blank_img = np.concatenate(txt_img_list, axis=1)
-    return np.array(blank_img)
+        for ctrl_pnt, rec, score in zip(ctrl_pnts, recs, scores):
+            polygon = self._ctrl_pnt_to_poly(ctrl_pnt)
+            self.draw_polygon(polygon, color, alpha=alpha)
 
+            # draw text in the top left corner
+            text = self._decode_recognition(rec)
+            text = "{:.3f}: {}".format(score, text)
+            lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
+            text_pos = polygon[0]
+            horiz_align = "left"
+            font_size = self._default_font_size
 
-def str_count(s):
-    """
-    Count 
-        the number of Chinese characters, 
-        a single English character, and 
-        a single number equal to half the length of Chinese characters.
-
-    Parameters
-    ----------
-        s(string): the input of string
+            self.draw_text(text, text_pos,
+                           color=lighter_color,
+                           horizontal_alignment=horiz_align,
+                           font_size=font_size,
+                           draw_chinese=False if self.vocab_size == 96 else True)
     
-    Returns
-    -------
-        the number of Chinese characters
-    """
-    count_zh = count_pu = 0
-    s_len = len(s)
-    en_dg_count = 0
-    for c in s:
-        if c in string.ascii_letters or c.isdigit() or c.isspace():
-            en_dg_count += 1
-        elif c.isalpha():
-            count_zh += 1
-        else:
-            count_pu += 1
-    return s_len - math.ceil(en_dg_count / 2)
+
+    def draw_text(self, text, position, *, font_size=None, color="g",
+                        horizontal_alignment="center", rotation=0, draw_chinese=False):
+        """
+        Params:
+        -----
+        text (str): class label
+        position (tuple): a tuple of the x and y coordinates to place text on image.
+        font_size (int, optional): font of the text. 
+            If not provided, a font size proportional to the image width is calculated and used.
+        color: color of the text. 
+            Refer to `matplotlib.colors` for full list of formats that are accepted.
+        horizontal_alignment (str): see `matplotlib.text.Text`
+        rotation: rotation angle in degrees CCW
+
+        Returns:
+        --------
+        output (VisImage): image object with text drawn.
+        """
+        if not font_size:
+            font_size = self._default_font_size
+
+        # since the text background is dark, we don't want the text to be dark
+        color = np.maximum(list(mplc.to_rgb(color)), 0.2)
+        color[np.argmax(color)] = max(0.8, np.max(color))
+        
+        x, y = position
+        arguments = dict(size=font_size * self.output.scale,
+                         family="sans-serif",
+                         bbox={"facecolor": "black", "alpha": 0.8, "pad": 0.7, "edgecolor": "none"},
+                         verticalalignment="top",
+                         horizontalalignment=horizontal_alignment,
+                         color=color,
+                         zorder=10,
+                         rotation=rotation,)
+        if draw_chinese:
+            arguments.update(dict(fontproperties=mfm.FontProperties(fname=DEFAULT_FONT)))
+        self.output.ax.text(x, y, text, **arguments)
+        return self.output
+
 
 
