@@ -9,9 +9,9 @@ import PIL.Image as Image
 import pycocotools.mask as mask_util
 import torch
 
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.utils.comm import all_gather, is_main_process, synchronize
-from detectron2.utils.file_io import PathManager
+from data import DatasetCatalog, MetadataCatalog
+from utils.comm.multi_gpu import all_gather, is_main_process, synchronize
+from utils.io import PathManager
 
 from .evaluator import DatasetEvaluator
 
@@ -20,16 +20,8 @@ class SemSegEvaluator(DatasetEvaluator):
     """
     Evaluate semantic segmentation metrics.
     """
-
-    def __init__(
-        self,
-        dataset_name,
-        distributed=True,
-        output_dir=None,
-        *,
-        num_classes=None,
-        ignore_label=None,
-    ):
+    def __init__(self, dataset_name, distributed=True, output_dir=None, *,
+                    num_classes=None, ignore_label=None,):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -40,22 +32,17 @@ class SemSegEvaluator(DatasetEvaluator):
         """
         self._logger = logging.getLogger(__name__)
         if num_classes is not None:
-            self._logger.warn(
-                "SemSegEvaluator(num_classes) is deprecated! It should be obtained from metadata."
-            )
+            self._logger.warn("SemSegEvaluator(num_classes) is deprecated! It should be obtained from metadata.")
         if ignore_label is not None:
-            self._logger.warn(
-                "SemSegEvaluator(ignore_label) is deprecated! It should be obtained from metadata."
-            )
+            self._logger.warn("SemSegEvaluator(ignore_label) is deprecated! It should be obtained from metadata.")
         self._dataset_name = dataset_name
         self._distributed = distributed
         self._output_dir = output_dir
-
         self._cpu_device = torch.device("cpu")
 
         self.input_file_to_gt_file = {
             dataset_record["file_name"]: dataset_record["sem_seg_file_name"]
-            for dataset_record in DatasetCatalog.get(dataset_name)
+                                    for dataset_record in DatasetCatalog.get(dataset_name)
         }
 
         meta = MetadataCatalog.get(dataset_name)
@@ -65,14 +52,14 @@ class SemSegEvaluator(DatasetEvaluator):
             self._contiguous_id_to_dataset_id = {v: k for k, v in c2d.items()}
         except AttributeError:
             self._contiguous_id_to_dataset_id = None
-        self._class_names = meta.stuff_classes
+        self._class_names =     meta.stuff_classes
         self._num_classes = len(meta.stuff_classes)
         if num_classes is not None:
             assert self._num_classes == num_classes, f"{self._num_classes} != {num_classes}"
         self._ignore_label = ignore_label if ignore_label is not None else meta.ignore_label
 
     def reset(self):
-        self._conf_matrix = np.zeros((self._num_classes + 1, self._num_classes + 1), dtype=np.int64)
+        self._conf_matrix = np.zeros((self._num_classes+1, self._num_classes+1), dtype=np.int64)
         self._predictions = []
 
     def process(self, inputs, outputs):
@@ -93,10 +80,8 @@ class SemSegEvaluator(DatasetEvaluator):
 
             gt[gt == self._ignore_label] = self._num_classes
 
-            self._conf_matrix += np.bincount(
-                (self._num_classes + 1) * pred.reshape(-1) + gt.reshape(-1),
-                minlength=self._conf_matrix.size,
-            ).reshape(self._conf_matrix.shape)
+            self._conf_matrix += np.bincount((self._num_classes+1) * pred.reshape(-1) + gt.reshape(-1),
+                                              minlength=self._conf_matrix.size,).reshape(self._conf_matrix.shape)
 
             self._predictions.extend(self.encode_json_sem_seg(pred, input["file_name"]))
 
@@ -130,27 +115,30 @@ class SemSegEvaluator(DatasetEvaluator):
         acc = np.full(self._num_classes, np.nan, dtype=np.float)
         iou = np.full(self._num_classes, np.nan, dtype=np.float)
         tp = self._conf_matrix.diagonal()[:-1].astype(np.float)
+
         pos_gt = np.sum(self._conf_matrix[:-1, :-1], axis=0).astype(np.float)
         class_weights = pos_gt / np.sum(pos_gt)
         pos_pred = np.sum(self._conf_matrix[:-1, :-1], axis=1).astype(np.float)
+        
         acc_valid = pos_gt > 0
         acc[acc_valid] = tp[acc_valid] / pos_gt[acc_valid]
+        
         iou_valid = (pos_gt + pos_pred) > 0
         union = pos_gt + pos_pred - tp
         iou[acc_valid] = tp[acc_valid] / union[acc_valid]
+        
         macc = np.sum(acc[acc_valid]) / np.sum(acc_valid)
         miou = np.sum(iou[acc_valid]) / np.sum(iou_valid)
         fiou = np.sum(iou[acc_valid] * class_weights[acc_valid])
         pacc = np.sum(tp) / np.sum(pos_gt)
 
         res = {}
-        res["mIoU"] = 100 * miou
+        res[ "mIoU"] = 100 * miou
         res["fwIoU"] = 100 * fiou
+        res[ "mACC"] = 100 * macc
+        res[ "pACC"] = 100 * pacc
         for i, name in enumerate(self._class_names):
             res["IoU-{}".format(name)] = 100 * iou[i]
-        res["mACC"] = 100 * macc
-        res["pACC"] = 100 * pacc
-        for i, name in enumerate(self._class_names):
             res["ACC-{}".format(name)] = 100 * acc[i]
 
         if self._output_dir:
@@ -169,16 +157,17 @@ class SemSegEvaluator(DatasetEvaluator):
         json_list = []
         for label in np.unique(sem_seg):
             if self._contiguous_id_to_dataset_id is not None:
-                assert (
-                    label in self._contiguous_id_to_dataset_id
-                ), "Label {} is not in the metadata info for {}".format(label, self._dataset_name)
+                assert label in self._contiguous_id_to_dataset_id, \
+                    f"Label {label} is not in the metadata info for {self._dataset_name}"
                 dataset_id = self._contiguous_id_to_dataset_id[label]
             else:
                 dataset_id = int(label)
             mask = (sem_seg == label).astype(np.uint8)
             mask_rle = mask_util.encode(np.array(mask[:, :, None], order="F"))[0]
             mask_rle["counts"] = mask_rle["counts"].decode("utf-8")
-            json_list.append(
-                {"file_name": input_file_name, "category_id": dataset_id, "segmentation": mask_rle}
-            )
+            json_list.append({
+                "file_name": input_file_name, 
+                "category_id": dataset_id, 
+                "segmentation": mask_rle,
+            })
         return json_list

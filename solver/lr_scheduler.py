@@ -18,14 +18,8 @@ class WarmupParamScheduler(CompositeParamScheduler):
     """
     Add an initial warmup stage to another scheduler.
     """
-
-    def __init__(
-        self,
-        scheduler: ParamScheduler,
-        warmup_factor: float,
-        warmup_length: float,
-        warmup_method: str = "linear",
-    ):
+    def __init__(self, scheduler: ParamScheduler, warmup_factor: float,
+                            warmup_length: float, warmup_method: str = "linear",):
         """
         Args:
             scheduler: warmup will be added at the beginning of this scheduler
@@ -83,13 +77,8 @@ class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
     # where the relative scale among all LRs stay unchanged during training.  In this
     # case we only need a total of one scheduler that defines the relative LR multiplier.
 
-    def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        multiplier: ParamScheduler,
-        max_iter: int,
-        last_iter: int = -1,
-    ):
+    def __init__(self, optimizer: torch.optim.Optimizer, multiplier: ParamScheduler,
+                        max_iter: int, last_iter: int = -1,):
         """
         Args:
             optimizer, last_iter: See ``torch.optim.lr_scheduler._LRScheduler``.
@@ -100,8 +89,8 @@ class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
         """
         if not isinstance(multiplier, ParamScheduler):
             raise ValueError(
-                "_LRMultiplier(multiplier=) must be an instance of fvcore "
-                f"ParamScheduler. Got {multiplier} instead."
+                "_LRMultiplier(multiplier=) must be an instance of fvcore ParamScheduler. "
+                f"Got {multiplier} instead."
             )
         self._multiplier = multiplier
         self._max_iter = max_iter
@@ -109,7 +98,10 @@ class LRMultiplier(torch.optim.lr_scheduler._LRScheduler):
 
     def state_dict(self):
         # fvcore schedulers are stateless. Only keep pytorch scheduler states
-        return {"base_lrs": self.base_lrs, "last_epoch": self.last_epoch}
+        return {
+            "base_lrs": self.base_lrs, 
+            "last_epoch": self.last_epoch,
+        }
 
     def get_lr(self) -> List[float]:
         multiplier = self._multiplier(self.last_epoch / self._max_iter)
@@ -130,22 +122,16 @@ Content below is no longer needed!
 
 
 class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
-    def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        milestones: List[int],
-        gamma: float = 0.1,
-        warmup_factor: float = 0.001,
-        warmup_iters: int = 1000,
-        warmup_method: str = "linear",
-        last_epoch: int = -1,
-    ):
+
+    def __init__(self, optimizer: torch.optim.Optimizer, milestones: List[int],
+                            gamma: float = 0.1, warmup_factor: float = 0.001,
+                      warmup_iters: int = 1000, warmup_method: str = "linear", last_epoch: int = -1,):
         logger.warning(
             "WarmupMultiStepLR is deprecated! Use LRMultipilier with fvcore ParamScheduler instead!"
         )
         if not list(milestones) == sorted(milestones):
             raise ValueError(
-                "Milestones should be a list of" " increasing integers. Got {}", milestones
+                f"Milestones should be a list of increasing integers. Got {milestones} instead."
             )
         self.milestones = milestones
         self.gamma = gamma
@@ -169,15 +155,10 @@ class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
 
 
 class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
-    def __init__(
-        self,
-        optimizer: torch.optim.Optimizer,
-        max_iters: int,
-        warmup_factor: float = 0.001,
-        warmup_iters: int = 1000,
-        warmup_method: str = "linear",
-        last_epoch: int = -1,
-    ):
+
+    def __init__(self, optimizer: torch.optim.Optimizer, max_iters: int, 
+                    warmup_factor: float = 0.001, warmup_iters: int = 1000, 
+                    warmup_method: str = "linear", last_epoch: int = -1,):
         logger.warning(
             "WarmupCosineLR is deprecated! Use LRMultipilier with fvcore ParamScheduler instead!"
         )
@@ -197,10 +178,7 @@ class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
         # instead of at 0. In the case that warmup_iters << max_iters the two are
         # very close to each other.
         return [
-            base_lr
-            * warmup_factor
-            * 0.5
-            * (1.0 + math.cos(math.pi * self.last_epoch / self.max_iters))
+            base_lr * warmup_factor * 0.5 * (1. + math.cos(math.pi * self.last_epoch / self.max_iters))
             for base_lr in self.base_lrs
         ]
 
@@ -209,9 +187,7 @@ class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
         return self.get_lr()
 
 
-def _get_warmup_factor_at_iter(
-    method: str, iter: int, warmup_iters: int, warmup_factor: float
-) -> float:
+def _get_warmup_factor_at_iter(method: str, iter: int, warmup_iters: int, warmup_factor: float) -> float:
     """
     Return the learning rate warmup factor at a specific iteration.
     See :paper:`ImageNet in 1h` for more details.

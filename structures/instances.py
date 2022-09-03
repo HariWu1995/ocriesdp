@@ -34,7 +34,6 @@ class Instances:
           category_3_detections = instances[instances.pred_classes == 3]
           confident_detections = instances[instances.scores > 0.9]
     """
-
     def __init__(self, image_size: Tuple[int, int], **kwargs: Any):
         """
         Args:
@@ -73,9 +72,8 @@ class Instances:
         """
         data_len = len(value)
         if len(self._fields):
-            assert (
-                len(self) == data_len
-            ), "Adding a field of length {} to a Instances of length {}".format(data_len, len(self))
+            assert len(self) == data_len, \
+                "Adding a field of length {} to a Instances of length {}".format(data_len, len(self))
         self._fields[name] = value
 
     def has(self, name: str) -> bool:

@@ -4,8 +4,8 @@ from typing import Callable, List, Optional, Tuple
 import torch
 from torch import nn
 
-from detectron2.structures import Boxes, Instances
-from detectron2.utils.registry import _convert_target_to_string, locate
+from structures import Boxes, Instances
+from utils.registry import _convert_target_to_string, locate
 
 from .torchscript_patch import patch_builtin_len
 
@@ -86,12 +86,14 @@ class ListSchema(Schema):
 
 @dataclass
 class TupleSchema(ListSchema):
+
     def __call__(self, values):
         return tuple(super().__call__(values))
 
 
 @dataclass
 class IdentitySchema(Schema):
+
     def __call__(self, values):
         return values[0]
 
@@ -121,6 +123,7 @@ class DictSchema(ListSchema):
 
 @dataclass
 class InstancesSchema(DictSchema):
+
     def __call__(self, values):
         image_size, fields = values[-1], values[:-1]
         fields = super().__call__(fields)
@@ -138,10 +141,8 @@ class InstancesSchema(DictSchema):
 @dataclass
 class TensorWrapSchema(Schema):
     """
-    For classes that are simple wrapper of tensors, e.g.
-    Boxes, RotatedBoxes, BitMasks
+    For classes that are simple wrapper of tensors, e.g. Boxes, RotatedBoxes, BitMasks
     """
-
     class_name: str
 
     def __call__(self, values):
@@ -168,7 +169,7 @@ def flatten_to_tuple(obj):
         ((str, bytes), IdentitySchema),
         (list, ListSchema),
         (tuple, TupleSchema),
-        (collections.abc.Mapping, DictSchema),
+        (collections.Mapping, DictSchema),
         (Instances, InstancesSchema),
         (Boxes, TensorWrapSchema),
     ]
@@ -205,29 +206,12 @@ class TracingAdapter(nn.Module):
         # adapter knows the schema to convert it back (new_outputs == outputs)
         new_outputs = adapter.outputs_schema(flattened_outputs)
     """
+    flattened_inputs: Tuple[torch.Tensor] = None    # Flattened version of inputs given to this class's constructor.
+    inputs_schema: Schema = None                    #        Schema of the inputs given to this class's constructor.
+    outputs_schema: Schema = None                   #        Schema of the output produced by calling the given model with inputs.
 
-    flattened_inputs: Tuple[torch.Tensor] = None
-    """
-    Flattened version of inputs given to this class's constructor.
-    """
-
-    inputs_schema: Schema = None
-    """
-    Schema of the inputs given to this class's constructor.
-    """
-
-    outputs_schema: Schema = None
-    """
-    Schema of the output produced by calling the given model with inputs.
-    """
-
-    def __init__(
-        self,
-        model: nn.Module,
-        inputs,
-        inference_func: Optional[Callable] = None,
-        allow_non_tensor: bool = False,
-    ):
+    def __init__(self, model: nn.Module, inputs, inference_func: Optional[Callable] = None,
+                                                allow_non_tensor: bool = False,):
         """
         Args:
             model: an nn.Module
@@ -270,10 +254,7 @@ class TracingAdapter(nn.Module):
         else:
             for input in self.flattened_inputs:
                 if not isinstance(input, torch.Tensor):
-                    raise ValueError(
-                        "Inputs for tracing must only contain tensors. "
-                        f"Got a {type(input)} instead."
-                    )
+                    raise ValueError(f"Inputs for tracing must only contain tensors. Got {type(input)} instead.")
 
     def forward(self, *args: torch.Tensor):
         with torch.no_grad(), patch_builtin_len():
@@ -282,9 +263,8 @@ class TracingAdapter(nn.Module):
             else:
                 if args != self.flattened_inputs:
                     raise ValueError(
-                        "TracingAdapter does not contain valid inputs_schema."
-                        " So it cannot generalize to other inputs and must be"
-                        " traced with `.flattened_inputs`."
+                        "TracingAdapter does not contain valid inputs_schema. "
+                        "So it cannot generalize to other inputs and must be traced with `.flattened_inputs`."
                     )
                 inputs_orig_format = self.inputs
 
@@ -300,17 +280,15 @@ class TracingAdapter(nn.Module):
                     self.outputs_schema = None
                 else:
                     raise ValueError(
-                        "Model cannot be traced because some model outputs "
-                        "cannot flatten to tensors."
+                        "Model cannot be traced because some model outputs cannot flatten to tensors."
                     )
             else:  # schema is valid
                 if self.outputs_schema is None:
                     self.outputs_schema = schema
                 else:
-                    assert self.outputs_schema == schema, (
-                        "Model should always return outputs with the same "
-                        "structure so it can be traced!"
-                    )
+                    assert self.outputs_schema == schema, \
+                        "Model should always return outputs with the same structure so it can be traced!"
+                    
             return flattened_outputs
 
     def _create_wrapper(self, traced_model):
@@ -318,7 +296,6 @@ class TracingAdapter(nn.Module):
         Return a function that has an input/output interface the same as the
         original model, but it calls the given traced model under the hood.
         """
-
         def forward(*args):
             flattened_inputs, _ = flatten_to_tuple(args)
             flattened_outputs = traced_model(*flattened_inputs)

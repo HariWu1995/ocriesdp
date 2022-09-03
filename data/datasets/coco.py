@@ -12,8 +12,8 @@ from fvcore.common.timer import Timer
 from iopath.common.file_io import file_lock
 from PIL import Image
 
-from detectron2.structures import Boxes, BoxMode, PolygonMasks, RotatedBoxes
-from detectron2.utils.file_io import PathManager
+from structures import Boxes, BoxMode, PolygonMasks, RotatedBoxes
+from utils.io import PathManager
 
 from .. import DatasetCatalog, MetadataCatalog
 

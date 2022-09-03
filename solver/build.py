@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Type, Uni
 import torch
 from fvcore.common.param_scheduler import CosineParamScheduler, MultiStepParamScheduler
 
-from detectron2.config import CfgNode
+from config import CfgNode
 
 from .lr_scheduler import LRMultiplier, WarmupParamScheduler
 
@@ -16,6 +16,7 @@ _GradientClipper = Callable[[_GradientClipperInput], None]
 
 
 class GradientClipType(Enum):
+    
     VALUE = "value"
     NORM = "norm"
 
@@ -44,15 +45,13 @@ def _generate_optimizer_class_with_gradient_clipping(
     optimizer: Type[torch.optim.Optimizer],
     *,
     per_param_clipper: Optional[_GradientClipper] = None,
-    global_clipper: Optional[_GradientClipper] = None,
-) -> Type[torch.optim.Optimizer]:
+    global_clipper: Optional[_GradientClipper] = None,) -> Type[torch.optim.Optimizer]:
     """
     Dynamically creates a new type that inherits the type of a given instance
     and overrides the `step` method to add gradient clipping
     """
-    assert (
-        per_param_clipper is None or global_clipper is None
-    ), "Not allowed to use both per-parameter clipping and global clipping"
+    assert (per_param_clipper is None or global_clipper is None), \
+        "Not allowed to use both per-parameter clipping and global clipping"
 
     def optimizer_wgc_step(self, closure=None):
         if per_param_clipper is not None:
@@ -74,9 +73,7 @@ def _generate_optimizer_class_with_gradient_clipping(
     return OptimizerWithGradientClip
 
 
-def maybe_add_gradient_clipping(
-    cfg: CfgNode, optimizer: Type[torch.optim.Optimizer]
-) -> Type[torch.optim.Optimizer]:
+def maybe_add_gradient_clipping(cfg: CfgNode, optimizer: Type[torch.optim.Optimizer]) -> Type[torch.optim.Optimizer]:
     """
     If gradient clipping is enabled through config options, wraps the existing
     optimizer type to become a new dynamically created class OptimizerWithGradientClip
@@ -115,17 +112,17 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
     Build an optimizer from config.
     """
     params = get_default_optimizer_params(
-        model,
-        base_lr=cfg.SOLVER.BASE_LR,
+                        model,
+                  base_lr=cfg.SOLVER.BASE_LR,
         weight_decay_norm=cfg.SOLVER.WEIGHT_DECAY_NORM,
-        bias_lr_factor=cfg.SOLVER.BIAS_LR_FACTOR,
+           bias_lr_factor=cfg.SOLVER.BIAS_LR_FACTOR,
         weight_decay_bias=cfg.SOLVER.WEIGHT_DECAY_BIAS,
     )
     return maybe_add_gradient_clipping(cfg, torch.optim.SGD)(
-        params,
-        lr=cfg.SOLVER.BASE_LR,
-        momentum=cfg.SOLVER.MOMENTUM,
-        nesterov=cfg.SOLVER.NESTEROV,
+                    params,
+                  lr=cfg.SOLVER.BASE_LR,
+            momentum=cfg.SOLVER.MOMENTUM,
+            nesterov=cfg.SOLVER.NESTEROV,
         weight_decay=cfg.SOLVER.WEIGHT_DECAY,
     )
 
@@ -217,9 +214,7 @@ def get_default_optimizer_params(
     return params
 
 
-def build_lr_scheduler(
-    cfg: CfgNode, optimizer: torch.optim.Optimizer
-) -> torch.optim.lr_scheduler._LRScheduler:
+def build_lr_scheduler(cfg: CfgNode, optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler._LRScheduler:
     """
     Build a LR scheduler from config.
     """
@@ -230,8 +225,7 @@ def build_lr_scheduler(
         if len(steps) != len(cfg.SOLVER.STEPS):
             logger = logging.getLogger(__name__)
             logger.warning(
-                "SOLVER.STEPS contains values larger than SOLVER.MAX_ITER. "
-                "These values will be ignored."
+                "SOLVER.STEPS contains values larger than SOLVER.MAX_ITER. These values will be ignored."
             )
         sched = MultiStepParamScheduler(
             values=[cfg.SOLVER.GAMMA ** k for k in range(len(steps) + 1)],

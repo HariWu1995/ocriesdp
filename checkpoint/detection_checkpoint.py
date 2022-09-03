@@ -2,8 +2,9 @@
 import pickle
 from fvcore.common.checkpoint import Checkpointer
 
-import detectron2.utils.comm as comm
-from detectron2.utils.file_io import PathManager
+from utils.io import PathManager
+from utils.comm.multi_gpu import is_main_process
+
 
 from .c2_model_loading import align_and_update_state_dicts
 
@@ -15,19 +16,15 @@ class DetectionCheckpointer(Checkpointer):
     """
 
     def __init__(self, model, save_dir="", *, save_to_disk=None, **checkpointables):
-        is_main_process = comm.is_main_process()
-        super().__init__(
-            model,
-            save_dir,
-            save_to_disk=is_main_process if save_to_disk is None else save_to_disk,
-            **checkpointables,
-        )
+        super().__init__(model, save_dir, save_to_disk=is_main_process() if save_to_disk is None 
+                                                                        else save_to_disk, **checkpointables,)
         self.path_manager = PathManager
 
-    def _load_file(self, filename):
+    def _load_file(self, filename: str):
         if filename.endswith(".pkl"):
             with PathManager.open(filename, "rb") as f:
                 data = pickle.load(f, encoding="latin1")
+
             if "model" in data and "__author__" in data:
                 # file is in Detectron2 model zoo format
                 self.logger.info("Reading a file from '{}'".format(data["__author__"]))
@@ -38,7 +35,11 @@ class DetectionCheckpointer(Checkpointer):
                     # Detection models have "blobs", but ImageNet models don't
                     data = data["blobs"]
                 data = {k: v for k, v in data.items() if not k.endswith("_momentum")}
-                return {"model": data, "__author__": "Caffe2", "matching_heuristics": True}
+                return {
+                    "model": data, 
+                    "__author__": "Caffe2", 
+                    "matching_heuristics": True,
+                }
 
         loaded = super()._load_file(filename)  # load native pth checkpoint
         if "model" not in loaded:
@@ -48,12 +49,11 @@ class DetectionCheckpointer(Checkpointer):
     def _load_model(self, checkpoint):
         if checkpoint.get("matching_heuristics", False):
             self._convert_ndarray_to_tensor(checkpoint["model"])
+
             # convert weights by name-matching heuristics
-            checkpoint["model"] = align_and_update_state_dicts(
-                self.model.state_dict(),
-                checkpoint["model"],
-                c2_conversion=checkpoint.get("__author__", None) == "Caffe2",
-            )
+            checkpoint["model"] = align_and_update_state_dicts(self.model.state_dict(),
+                checkpoint["model"], c2_conversion=checkpoint.get("__author__", None) == "Caffe2",)
+
         # for non-caffe2 models, use standard ways to load it
         incompatible = super()._load_model(checkpoint)
 
@@ -68,3 +68,6 @@ class DetectionCheckpointer(Checkpointer):
                 except ValueError:
                     pass
         return incompatible
+
+
+

@@ -25,14 +25,9 @@ __all__ = [
 
 
 def _check_img_dtype(img):
-    assert isinstance(img, np.ndarray), "[Augmentation] Needs an numpy array, but got a {}!".format(
-        type(img)
-    )
-    assert not isinstance(img.dtype, np.integer) or (
-        img.dtype == np.uint8
-    ), "[Augmentation] Got image of type {}, use uint8 or floating points instead!".format(
-        img.dtype
-    )
+    assert isinstance(img, np.ndarray), f"[Augmentation] Needs an numpy array, but got a {type(img)}!"
+    assert not isinstance(img.dtype, np.integer) or (img.dtype == np.uint8), \
+                f"[Augmentation] Got image of type {img.dtype}, use uint8 or floating points instead!"
     assert img.ndim in [2, 3], img.ndim
 
 
@@ -53,11 +48,9 @@ def _get_aug_input_args(aug, aug_input) -> List[Any]:
             for name, prm in prms:
                 if prm.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
                     raise TypeError(
-                        f""" \
-The default implementation of `{type(aug)}.__call__` does not allow \
-`{type(aug)}.get_transform` to use variable-length arguments (*args, **kwargs)! \
-If arguments are unknown, reimplement `__call__` instead. \
-"""
+                        f"The default implementation of `{type(aug)}.__call__` does not allow "
+                        f"`{type(aug)}.get_transform` to use variable-length arguments (*args, **kwargs)! "
+                        f"If arguments are unknown, reimplement `__call__` instead."
                     )
                 names.append(name)
         aug.input_args = tuple(names)
@@ -163,10 +156,8 @@ class Augmentation:
         """
         args = _get_aug_input_args(self, aug_input)
         tfm = self.get_transform(*args)
-        assert isinstance(tfm, (Transform, TransformList)), (
-            f"{type(self)}.get_transform must return an instance of Transform! "
-            "Got {type(tfm)} instead."
-        )
+        assert isinstance(tfm, (Transform, TransformList)), \
+            f"{type(self)}.get_transform must return an instance of Transform! Got {type(tfm)} instead."
         aug_input.transform(tfm)
         return tfm
 
@@ -190,13 +181,10 @@ class Augmentation:
             classname = type(self).__name__
             argstr = []
             for name, param in sig.parameters.items():
-                assert (
-                    param.kind != param.VAR_POSITIONAL and param.kind != param.VAR_KEYWORD
-                ), "The default __repr__ doesn't support *args or **kwargs"
-                assert hasattr(self, name), (
-                    "Attribute {} not found! "
-                    "Default __repr__ only works if attributes match the constructor.".format(name)
-                )
+                assert (param.kind != param.VAR_POSITIONAL and param.kind != param.VAR_KEYWORD), \
+                    "The default __repr__ doesn't support *args or **kwargs"
+                assert hasattr(self, name), \
+                    f"Attribute {name} not found! Default __repr__ only works if attributes match the constructor."
                 attr = getattr(self, name)
                 default = param.default
                 if default is attr:
@@ -249,7 +237,6 @@ class AugmentationList(Augmentation):
     the kth augmentation must be applied first, to provide inputs needed by the (k+1)th
     augmentation.
     """
-
     def __init__(self, augs):
         """
         Args:
@@ -304,13 +291,8 @@ class AugInput:
     """
 
     # TODO maybe should support more builtin data types here
-    def __init__(
-        self,
-        image: np.ndarray,
-        *,
-        boxes: Optional[np.ndarray] = None,
-        sem_seg: Optional[np.ndarray] = None,
-    ):
+    def __init__(self, image: np.ndarray, *, boxes: Optional[np.ndarray] = None,
+                                            sem_seg: Optional[np.ndarray] = None,):
         """
         Args:
             image (ndarray): (H,W) or (H,W,C) ndarray of type uint8 in range [0, 255], or
@@ -338,9 +320,7 @@ class AugInput:
         if self.sem_seg is not None:
             self.sem_seg = tfm.apply_segmentation(self.sem_seg)
 
-    def apply_augmentations(
-        self, augmentations: List[Union[Augmentation, Transform]]
-    ) -> TransformList:
+    def apply_augmentations(self, augmentations: List[Union[Augmentation, Transform]]) -> TransformList:
         """
         Equivalent of ``AugmentationList(augmentations)(self)``
         """

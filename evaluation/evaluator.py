@@ -7,8 +7,8 @@ from contextlib import ExitStack, contextmanager
 import torch
 from torch import nn
 
-from detectron2.utils.comm import get_world_size, is_main_process
-from detectron2.utils.logger import log_every_n_seconds
+from utils.comm.multi_gpu import get_world_size, is_main_process
+from utils.logger import log_every_n_seconds
 
 
 class DatasetEvaluator:
@@ -21,7 +21,6 @@ class DatasetEvaluator:
     This class will accumulate information of the inputs/outputs (by :meth:`process`),
     and produce evaluation results in the end (by :meth:`evaluate`).
     """
-
     def reset(self):
         """
         Preparation for a new round of evaluation.
@@ -69,7 +68,6 @@ class DatasetEvaluators(DatasetEvaluator):
     This class dispatches every evaluation call to
     all of its :class:`DatasetEvaluator`.
     """
-
     def __init__(self, evaluators):
         """
         Args:
@@ -92,9 +90,8 @@ class DatasetEvaluators(DatasetEvaluator):
             result = evaluator.evaluate()
             if is_main_process() and result is not None:
                 for k, v in result.items():
-                    assert (
-                        k not in results
-                    ), "Different evaluators produce results with the same key {}".format(k)
+                    assert (k not in results), \
+                        f"Different evaluators produce results with the same key {k}"
                     results[k] = v
         return results
 
@@ -154,29 +151,21 @@ def inference_on_dataset(model, data_loader, evaluator):
             if idx >= num_warmup * 2 or seconds_per_img > 5:
                 total_seconds_per_img = (time.perf_counter() - start_time) / iters_after_start
                 eta = datetime.timedelta(seconds=int(total_seconds_per_img * (total - idx - 1)))
-                log_every_n_seconds(
-                    logging.INFO,
-                    "Inference done {}/{}. {:.4f} s / img. ETA={}".format(
-                        idx + 1, total, seconds_per_img, str(eta)
-                    ),
-                    n=5,
-                )
+                log_every_n_seconds(logging.INFO,
+                                    f"Inference done {idx+1} / {total}. {seconds_per_img:.4f} s / img. ETA={eta}",
+                                    n=5,)
 
     # Measure the time only for this worker (before the synchronization barrier)
     total_time = time.perf_counter() - start_time
     total_time_str = str(datetime.timedelta(seconds=total_time))
     # NOTE this format is parsed by grep
-    logger.info(
-        "Total inference time: {} ({:.6f} s / img per device, on {} devices)".format(
-            total_time_str, total_time / (total - num_warmup), num_devices
-        )
-    )
+    logger.info("Total inference time: {} ({:.6f} s / img per device, on {} devices)".format(
+        total_time_str, total_time / (total - num_warmup), num_devices
+    ))
     total_compute_time_str = str(datetime.timedelta(seconds=int(total_compute_time)))
-    logger.info(
-        "Total inference pure compute time: {} ({:.6f} s / img per device, on {} devices)".format(
-            total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
-        )
-    )
+    logger.info("Total inference pure compute time: {} ({:.6f} s / img per device, on {} devices)".format(
+        total_compute_time_str, total_compute_time / (total - num_warmup), num_devices
+    ))
     results = evaluator.evaluate()
     # An evaluator may return None when not in main process.
     # Replace it by an empty dict instead to make it easier for downstream code to handle

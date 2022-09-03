@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-from . import transforms  # isort:skip
+from data import transforms  # isort:skip
 
-from .build import (
+from data.build import (
     build_batch_data_loader,
     build_detection_test_loader,
     build_detection_train_loader,
@@ -9,11 +9,11 @@ from .build import (
     load_proposals_into_dataset,
     print_instances_class_histogram,
 )
-from .catalog import DatasetCatalog, MetadataCatalog, Metadata
-from .common import DatasetFromList, MapDataset
-from .dataset_mapper import DatasetMapper
+from data.catalog import DatasetCatalog, MetadataCatalog, Metadata
+from data.common import DatasetFromList, MapDataset
+from data.dataset_mapper import DatasetMapper
 
 # ensure the builtin datasets are registered
-from . import datasets, samplers  # isort:skip
+from data import datasets, samplers  # isort:skip
 
 __all__ = [k for k in globals().keys() if not k.startswith("_")]

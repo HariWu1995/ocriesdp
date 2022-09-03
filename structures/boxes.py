@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 import torch
 from torch import device
 
-from detectron2.utils.env import TORCH_VERSION
+from utils.env import TORCH_VERSION
 
 _RawBoxType = Union[List[float], Tuple[float, ...], torch.Tensor, np.ndarray]
 

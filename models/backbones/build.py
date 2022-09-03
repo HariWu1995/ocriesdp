@@ -1,8 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-from detectron2.layers import ShapeSpec
-from detectron2.utils.registry import Registry
+from utils.registry import Registry
 
-from detectron2.modeling.backbone.backbone import Backbone
+from models.layers.common import ShapeSpec
+from models.backbones.base import Backbone
 
 
 BACKBONE_REGISTRY = Registry("BACKBONE")

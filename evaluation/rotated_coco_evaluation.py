@@ -6,8 +6,8 @@ import os
 import torch
 from pycocotools.cocoeval import COCOeval, maskUtils
 
-from detectron2.structures import BoxMode, RotatedBoxes, pairwise_iou_rotated
-from detectron2.utils.file_io import PathManager
+from structures import BoxMode, RotatedBoxes, pairwise_iou_rotated
+from utils.io import PathManager
 
 from .coco_evaluation import COCOEvaluator
 
@@ -22,10 +22,7 @@ class RotatedCOCOeval(COCOeval):
                 return False
             return np.all(
                 np.array(
-                    [
-                        (len(obj) == 5) and ((type(obj) == list) or (type(obj) == np.ndarray))
-                        for obj in box_list
-                    ]
+                    [(len(obj) == 5) and ((type(obj) == list) or (type(obj) == np.ndarray)) for obj in box_list]
                 )
             )
         return False
@@ -48,9 +45,7 @@ class RotatedCOCOeval(COCOeval):
                 box_tensor = BoxMode.convert(box_tensor, BoxMode.XYWH_ABS, BoxMode.XYWHA_ABS)
             else:
                 raise Exception(
-                    "Unable to convert from {}-dim box to {}-dim box".format(
-                        input_box_dim, output_box_dim
-                    )
+                    f"Unable to convert from {input_box_dim}-dim box to {output_box_dim}-dim box"
                 )
         return box_tensor
 
@@ -96,11 +91,10 @@ class RotatedCOCOeval(COCOeval):
 
 class RotatedCOCOEvaluator(COCOEvaluator):
     """
-    Evaluate object proposal/instance detection outputs using COCO-like metrics and APIs,
+    Evaluate object proposal / instance detection outputs using COCO-like metrics and APIs,
     with rotated boxes support.
     Note: this uses IOU only and does not consider angle differences.
     """
-
     def process(self, inputs, outputs):
         """
         Args:
@@ -174,19 +168,14 @@ class RotatedCOCOEvaluator(COCOEvaluator):
 
         self._logger.info("Evaluating predictions ...")
 
-        assert self._tasks is None or set(self._tasks) == {
-            "bbox"
-        }, "[RotatedCOCOEvaluator] Only bbox evaluation is supported"
-        coco_eval = (
-            self._evaluate_predictions_on_coco(self._coco_api, coco_results)
-            if len(coco_results) > 0
-            else None  # cocoapi does not handle empty results very well
-        )
+        assert self._tasks is None or set(self._tasks) == {"bbox"}, \
+            "[RotatedCOCOEvaluator] Only bbox evaluation is supported"
+        coco_eval = self._evaluate_predictions_on_coco(self._coco_api, coco_results) \
+                                                                if len(coco_results) > 0 \
+                                                                else None # cocoapi does not handle empty results very well
 
         task = "bbox"
-        res = self._derive_coco_results(
-            coco_eval, task, class_names=self._metadata.get("thing_classes")
-        )
+        res = self._derive_coco_results(coco_eval, task, class_names=self._metadata.get("thing_classes"))
         self._results[task] = res
 
     def _evaluate_predictions_on_coco(self, coco_gt, coco_results):

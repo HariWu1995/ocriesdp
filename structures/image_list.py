@@ -5,7 +5,7 @@ import torch
 from torch import device
 from torch.nn import functional as F
 
-from detectron2.utils.env import TORCH_VERSION
+from utils.env import TORCH_VERSION
 
 
 def _as_tensor(x: Tuple[int, int]) -> torch.Tensor:
@@ -69,9 +69,7 @@ class ImageList(object):
         return self.tensor.device
 
     @staticmethod
-    def from_tensors(
-        tensors: List[torch.Tensor], size_divisibility: int = 0, pad_value: float = 0.0
-    ) -> "ImageList":
+    def from_tensors(tensors: List[torch.Tensor], size_divisibility: int = 0, pad_value: float = 0.0) -> "ImageList":
         """
         Args:
             tensors: a tuple or list of `torch.Tensor`, each of shape (Hi, Wi) or

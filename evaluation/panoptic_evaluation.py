@@ -12,9 +12,9 @@ from typing import Optional
 from PIL import Image
 from tabulate import tabulate
 
-from detectron2.data import MetadataCatalog
-from detectron2.utils import comm
-from detectron2.utils.file_io import PathManager
+from data import MetadataCatalog
+from utils.io import PathManager
+from utils.comm.multi_gpu import gather, is_main_process, synchronize
 
 from .evaluator import DatasetEvaluator
 
@@ -56,13 +56,9 @@ class COCOPanopticEvaluator(DatasetEvaluator):
             # the model produces panoptic category id directly. No more conversion needed
             return segment_info
         if isthing is True:
-            segment_info["category_id"] = self._thing_contiguous_id_to_dataset_id[
-                segment_info["category_id"]
-            ]
+            segment_info["category_id"] = self._thing_contiguous_id_to_dataset_id[segment_info["category_id"]]
         else:
-            segment_info["category_id"] = self._stuff_contiguous_id_to_dataset_id[
-                segment_info["category_id"]
-            ]
+            segment_info["category_id"] = self._stuff_contiguous_id_to_dataset_id[segment_info["category_id"]]
         return segment_info
 
     def process(self, inputs, outputs):
@@ -84,9 +80,8 @@ class COCOPanopticEvaluator(DatasetEvaluator):
                         # VOID region.
                         continue
                     pred_class = panoptic_label // label_divisor
-                    isthing = (
-                        pred_class in self._metadata.thing_dataset_id_to_contiguous_id.values()
-                    )
+                    isthing = pred_class in self._metadata.thing_dataset_id_to_contiguous_id.values()
+
                     segments_info.append(
                         {
                             "id": int(panoptic_label) + 1,
@@ -112,11 +107,11 @@ class COCOPanopticEvaluator(DatasetEvaluator):
                 )
 
     def evaluate(self):
-        comm.synchronize()
+        synchronize()
 
-        self._predictions = comm.gather(self._predictions)
+        self._predictions = gather(self._predictions)
         self._predictions = list(itertools.chain(*self._predictions))
-        if not comm.is_main_process():
+        if not is_main_process():
             return
 
         # PanopticApi requires local files
@@ -149,15 +144,15 @@ class COCOPanopticEvaluator(DatasetEvaluator):
                 )
 
         res = {}
-        res["PQ"] = 100 * pq_res["All"]["pq"]
-        res["SQ"] = 100 * pq_res["All"]["sq"]
-        res["RQ"] = 100 * pq_res["All"]["rq"]
+        res["PQ"   ] = 100 * pq_res[   "All"]["pq"]
+        res["SQ"   ] = 100 * pq_res[   "All"]["sq"]
+        res["RQ"   ] = 100 * pq_res[   "All"]["rq"]
         res["PQ_th"] = 100 * pq_res["Things"]["pq"]
         res["SQ_th"] = 100 * pq_res["Things"]["sq"]
         res["RQ_th"] = 100 * pq_res["Things"]["rq"]
-        res["PQ_st"] = 100 * pq_res["Stuff"]["pq"]
-        res["SQ_st"] = 100 * pq_res["Stuff"]["sq"]
-        res["RQ_st"] = 100 * pq_res["Stuff"]["rq"]
+        res["PQ_st"] = 100 * pq_res[ "Stuff"]["pq"]
+        res["SQ_st"] = 100 * pq_res[ "Stuff"]["sq"]
+        res["RQ_st"] = 100 * pq_res[ "Stuff"]["rq"]
 
         results = OrderedDict({"panoptic_seg": res})
         _print_panoptic_results(pq_res)
@@ -171,14 +166,12 @@ def _print_panoptic_results(pq_res):
     for name in ["All", "Things", "Stuff"]:
         row = [name] + [pq_res[name][k] * 100 for k in ["pq", "sq", "rq"]] + [pq_res[name]["n"]]
         data.append(row)
-    table = tabulate(
-        data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center"
-    )
+    table = tabulate(data, headers=headers, tablefmt="pipe", floatfmt=".3f", stralign="center", numalign="center")
     logger.info("Panoptic Evaluation Results:\n" + table)
 
 
 if __name__ == "__main__":
-    from detectron2.utils.logger import setup_logger
+    from utils.logger import setup_logger
 
     logger = setup_logger()
     import argparse
@@ -193,7 +186,5 @@ if __name__ == "__main__":
     from panopticapi.evaluation import pq_compute
 
     with contextlib.redirect_stdout(io.StringIO()):
-        pq_res = pq_compute(
-            args.gt_json, args.pred_json, gt_folder=args.gt_dir, pred_folder=args.pred_dir
-        )
+        pq_res = pq_compute(args.gt_json, args.pred_json, gt_folder=args.gt_dir, pred_folder=args.pred_dir)
         _print_panoptic_results(pq_res)

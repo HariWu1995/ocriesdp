@@ -6,7 +6,7 @@ from typing import Optional
 import torch
 from torch.utils.data.sampler import Sampler
 
-from detectron2.utils import comm
+from utils.comm.multi_gpu import shared_random_seed, get_rank, get_world_size
 
 
 class TrainingSampler(Sampler):
@@ -34,11 +34,11 @@ class TrainingSampler(Sampler):
         assert size > 0
         self._shuffle = shuffle
         if seed is None:
-            seed = comm.shared_random_seed()
+            seed = shared_random_seed()
         self._seed = int(seed)
 
-        self._rank = comm.get_rank()
-        self._world_size = comm.get_world_size()
+        self._rank = get_rank()
+        self._world_size = get_world_size()
 
     def __iter__(self):
         start = self._rank
@@ -72,11 +72,11 @@ class RepeatFactorTrainingSampler(Sampler):
         """
         self._shuffle = shuffle
         if seed is None:
-            seed = comm.shared_random_seed()
+            seed = shared_random_seed()
         self._seed = int(seed)
 
-        self._rank = comm.get_rank()
-        self._world_size = comm.get_world_size()
+        self._rank = get_rank()
+        self._world_size = get_world_size()
 
         # Split into whole number (_int_part) and fractional (_frac_part) parts.
         self._int_part = torch.trunc(repeat_factors)
@@ -185,8 +185,8 @@ class InferenceSampler(Sampler):
         """
         self._size = size
         assert size > 0
-        self._rank = comm.get_rank()
-        self._world_size = comm.get_world_size()
+        self._rank = get_rank()
+        self._world_size = get_world_size()
 
         shard_size = (self._size - 1) // self._world_size + 1
         begin = shard_size * self._rank

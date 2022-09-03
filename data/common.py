@@ -8,7 +8,8 @@ import random
 import torch.utils.data as data
 from torch.utils.data.sampler import Sampler
 
-from detectron2.utils.serialize import PicklableWrapper
+from utils.serialize import PicklableWrapper
+
 
 __all__ = ["MapDataset", "DatasetFromList", "AspectRatioGroupedDataset", "ToIterableDataset"]
 
@@ -86,9 +87,7 @@ class DatasetFromList(data.Dataset):
         if self._serialize:
             logger = logging.getLogger(__name__)
             logger.info(
-                "Serializing {} elements to byte tensors and concatenating them all ...".format(
-                    len(self._lst)
-                )
+                f"Serializing {len(self._lst)} elements to byte tensors and concatenating them all ..."
             )
             self._lst = [_serialize(x) for x in self._lst]
             self._addr = np.asarray([len(x) for x in self._lst], dtype=np.int64)
@@ -119,7 +118,6 @@ class ToIterableDataset(data.IterableDataset):
     Convert an old indices-based (also called map-style) dataset
     to an iterable-style dataset.
     """
-
     def __init__(self, dataset, sampler):
         """
         Args:
@@ -143,9 +141,7 @@ class ToIterableDataset(data.IterableDataset):
             # will run sampler in every of the N worker and only keep 1/N of the ids on each
             # worker. The assumption is that sampler is cheap to iterate and it's fine to discard
             # ids in workers.
-            for idx in itertools.islice(
-                self.sampler, worker_info.id, None, worker_info.num_workers
-            ):
+            for idx in itertools.islice(self.sampler, worker_info.id, None, worker_info.num_workers):
                 yield self.dataset[idx]
 
 

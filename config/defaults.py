@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-from .config import CfgNode as CN
+from config.config import CfgNode
 
 # -----------------------------------------------------------------------------
 # Convention about Training / Test specific parameters
@@ -15,13 +15,13 @@ from .config import CfgNode as CN
 # Config definition
 # -----------------------------------------------------------------------------
 
-_C = CN()
+_C = CfgNode()
 
 # The version number, to upgrade from old configs to new ones if any
 # changes happen. It's recommended to keep a VERSION in your config file.
 _C.VERSION = 2
 
-_C.MODEL = CN()
+_C.MODEL = CfgNode()
 _C.MODEL.LOAD_PROPOSALS = False
 _C.MODEL.MASK_ON = False
 _C.MODEL.KEYPOINT_ON = False
@@ -45,7 +45,7 @@ _C.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
 # -----------------------------------------------------------------------------
 # INPUT
 # -----------------------------------------------------------------------------
-_C.INPUT = CN()
+_C.INPUT = CfgNode()
 # Size of the smallest side of the image during training
 _C.INPUT.MIN_SIZE_TRAIN = (800,)
 # Sample size of smallest side by choice or random selection from range give by
@@ -62,7 +62,7 @@ _C.INPUT.MAX_SIZE_TEST = 1333
 _C.INPUT.RANDOM_FLIP = "horizontal"
 
 # `True` if cropping is used for data augmentation during training
-_C.INPUT.CROP = CN({"ENABLED": False})
+_C.INPUT.CROP = CfgNode({"ENABLED": False})
 # Cropping type. See documentation of `detectron2.data.transforms.RandomCrop` for explanation.
 _C.INPUT.CROP.TYPE = "relative_range"
 # Size of crop in range (0, 1] if CROP.TYPE is "relative" or "relative_range" and in number of
@@ -84,7 +84,7 @@ _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------
-_C.DATASETS = CN()
+_C.DATASETS = CfgNode()
 # List of the dataset names for training. Must be registered in DatasetCatalog
 # Samples from these datasets will be merged and used as one dataset.
 _C.DATASETS.TRAIN = ()
@@ -104,7 +104,7 @@ _C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
 # -----------------------------------------------------------------------------
 # DataLoader
 # -----------------------------------------------------------------------------
-_C.DATALOADER = CN()
+_C.DATALOADER = CfgNode()
 # Number of data loading threads
 _C.DATALOADER.NUM_WORKERS = 4
 # If True, each batch should contain only images for which the aspect ratio
@@ -122,7 +122,7 @@ _C.DATALOADER.FILTER_EMPTY_ANNOTATIONS = True
 # ---------------------------------------------------------------------------- #
 # Backbone options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.BACKBONE = CN()
+_C.MODEL.BACKBONE = CfgNode()
 
 _C.MODEL.BACKBONE.NAME = "build_resnet_backbone"
 # Freeze the first several stages so they are not trained.
@@ -134,7 +134,7 @@ _C.MODEL.BACKBONE.FREEZE_AT = 2
 # ---------------------------------------------------------------------------- #
 # FPN options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.FPN = CN()
+_C.MODEL.FPN = CfgNode()
 # Names of the input feature maps to be used by FPN
 # They must have contiguous power of 2 strides
 # e.g., ["res2", "res3", "res4", "res5"]
@@ -151,7 +151,7 @@ _C.MODEL.FPN.FUSE_TYPE = "sum"
 # ---------------------------------------------------------------------------- #
 # Proposal generator options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.PROPOSAL_GENERATOR = CN()
+_C.MODEL.PROPOSAL_GENERATOR = CfgNode()
 # Current proposal generators include "RPN", "RRPN" and "PrecomputedProposals"
 _C.MODEL.PROPOSAL_GENERATOR.NAME = "RPN"
 # Proposal height and width both need to be greater than MIN_SIZE
@@ -162,7 +162,7 @@ _C.MODEL.PROPOSAL_GENERATOR.MIN_SIZE = 0
 # ---------------------------------------------------------------------------- #
 # Anchor generator options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ANCHOR_GENERATOR = CN()
+_C.MODEL.ANCHOR_GENERATOR = CfgNode()
 # The generator can be any name in the ANCHOR_GENERATOR registry
 _C.MODEL.ANCHOR_GENERATOR.NAME = "DefaultAnchorGenerator"
 # Anchor sizes (i.e. sqrt of area) in absolute pixels w.r.t. the network input.
@@ -189,7 +189,7 @@ _C.MODEL.ANCHOR_GENERATOR.OFFSET = 0.0
 # ---------------------------------------------------------------------------- #
 # RPN options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.RPN = CN()
+_C.MODEL.RPN = CfgNode()
 _C.MODEL.RPN.HEAD_NAME = "StandardRPNHead"  # used by RPN_HEAD_REGISTRY
 
 # Names of the input feature maps to be used by RPN
@@ -241,7 +241,7 @@ _C.MODEL.RPN.CONV_DIMS = [-1]
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ROI_HEADS = CN()
+_C.MODEL.ROI_HEADS = CfgNode()
 _C.MODEL.ROI_HEADS.NAME = "Res5ROIHeads"
 # Number of foreground classes
 _C.MODEL.ROI_HEADS.NUM_CLASSES = 80
@@ -280,7 +280,7 @@ _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
 # ---------------------------------------------------------------------------- #
 # Box Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ROI_BOX_HEAD = CN()
+_C.MODEL.ROI_BOX_HEAD = CfgNode()
 # C4 don't use head name option
 # Options for non-C4 models: FastRCNNConvFCHead,
 _C.MODEL.ROI_BOX_HEAD.NAME = ""
@@ -316,7 +316,7 @@ _C.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES = False
 # ---------------------------------------------------------------------------- #
 # Cascaded Box Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ROI_BOX_CASCADE_HEAD = CN()
+_C.MODEL.ROI_BOX_CASCADE_HEAD = CfgNode()
 # The number of cascade stages is implicitly defined by the length of the following two configs.
 _C.MODEL.ROI_BOX_CASCADE_HEAD.BBOX_REG_WEIGHTS = (
     (10.0, 10.0, 5.0, 5.0),
@@ -329,7 +329,7 @@ _C.MODEL.ROI_BOX_CASCADE_HEAD.IOUS = (0.5, 0.6, 0.7)
 # ---------------------------------------------------------------------------- #
 # Mask Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ROI_MASK_HEAD = CN()
+_C.MODEL.ROI_MASK_HEAD = CfgNode()
 _C.MODEL.ROI_MASK_HEAD.NAME = "MaskRCNNConvUpsampleHead"
 _C.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_MASK_HEAD.POOLER_SAMPLING_RATIO = 0
@@ -347,7 +347,7 @@ _C.MODEL.ROI_MASK_HEAD.POOLER_TYPE = "ROIAlignV2"
 # ---------------------------------------------------------------------------- #
 # Keypoint Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.ROI_KEYPOINT_HEAD = CN()
+_C.MODEL.ROI_KEYPOINT_HEAD = CfgNode()
 _C.MODEL.ROI_KEYPOINT_HEAD.NAME = "KRCNNConvDeconvUpsampleHead"
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
@@ -382,7 +382,7 @@ _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
 # ---------------------------------------------------------------------------- #
 # Semantic Segmentation Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.SEM_SEG_HEAD = CN()
+_C.MODEL.SEM_SEG_HEAD = CfgNode()
 _C.MODEL.SEM_SEG_HEAD.NAME = "SemSegFPNHead"
 _C.MODEL.SEM_SEG_HEAD.IN_FEATURES = ["p2", "p3", "p4", "p5"]
 # Label in the semantic segmentation ground truth that is ignored, i.e., no loss is calculated for
@@ -398,12 +398,12 @@ _C.MODEL.SEM_SEG_HEAD.COMMON_STRIDE = 4
 _C.MODEL.SEM_SEG_HEAD.NORM = "GN"
 _C.MODEL.SEM_SEG_HEAD.LOSS_WEIGHT = 1.0
 
-_C.MODEL.PANOPTIC_FPN = CN()
+_C.MODEL.PANOPTIC_FPN = CfgNode()
 # Scaling of all losses from instance detection / segmentation head.
 _C.MODEL.PANOPTIC_FPN.INSTANCE_LOSS_WEIGHT = 1.0
 
 # options when combining instance & semantic segmentation outputs
-_C.MODEL.PANOPTIC_FPN.COMBINE = CN({"ENABLED": True})  # "COMBINE.ENABLED" is deprecated & not used
+_C.MODEL.PANOPTIC_FPN.COMBINE = CfgNode({"ENABLED": True})  # "COMBINE.ENABLED" is deprecated & not used
 _C.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.5
 _C.MODEL.PANOPTIC_FPN.COMBINE.STUFF_AREA_LIMIT = 4096
 _C.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = 0.5
@@ -412,7 +412,7 @@ _C.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = 0.5
 # ---------------------------------------------------------------------------- #
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #
-_C.MODEL.RETINANET = CN()
+_C.MODEL.RETINANET = CfgNode()
 
 # This is the number of foreground classes.
 _C.MODEL.RETINANET.NUM_CLASSES = 80
@@ -462,7 +462,7 @@ _C.MODEL.RETINANET.NORM = ""
 # Note that parts of a resnet may be used for both the backbone and the head
 # These options apply to both
 # ---------------------------------------------------------------------------- #
-_C.MODEL.RESNETS = CN()
+_C.MODEL.RESNETS = CfgNode()
 
 _C.MODEL.RESNETS.DEPTH = 50
 _C.MODEL.RESNETS.OUT_FEATURES = ["res4"]  # res4 for C4 backbone, res2..5 for FPN backbone
@@ -502,7 +502,7 @@ _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 # ---------------------------------------------------------------------------- #
 # Solver
 # ---------------------------------------------------------------------------- #
-_C.SOLVER = CN()
+_C.SOLVER = CfgNode()
 
 # See detectron2/solver/build.py for LR scheduler options
 _C.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
@@ -553,7 +553,7 @@ _C.SOLVER.BIAS_LR_FACTOR = 1.0
 _C.SOLVER.WEIGHT_DECAY_BIAS = _C.SOLVER.WEIGHT_DECAY
 
 # Gradient clipping
-_C.SOLVER.CLIP_GRADIENTS = CN({"ENABLED": False})
+_C.SOLVER.CLIP_GRADIENTS = CfgNode({"ENABLED": False})
 # Type of gradient clipping, currently 2 values are supported:
 # - "value": the absolute values of elements of each gradients are clipped
 # - "norm": the norm of the gradient for each parameter is clipped thus
@@ -568,12 +568,12 @@ _C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
 # Enable automatic mixed precision for training
 # Note that this does not change model's inference behavior.
 # To use AMP in inference, run inference under autocast()
-_C.SOLVER.AMP = CN({"ENABLED": False})
+_C.SOLVER.AMP = CfgNode({"ENABLED": False})
 
 # ---------------------------------------------------------------------------- #
 # Specific test options
 # ---------------------------------------------------------------------------- #
-_C.TEST = CN()
+_C.TEST = CfgNode()
 # For end-to-end tests to verify the expected accuracy.
 # Each item is [task, metric, value, tolerance]
 # e.g.: [['bbox', 'AP', 38.5, 0.2]]
@@ -589,12 +589,12 @@ _C.TEST.KEYPOINT_OKS_SIGMAS = []
 # based on the limit established for the COCO dataset).
 _C.TEST.DETECTIONS_PER_IMAGE = 100
 
-_C.TEST.AUG = CN({"ENABLED": False})
+_C.TEST.AUG = CfgNode({"ENABLED": False})
 _C.TEST.AUG.MIN_SIZES = (400, 500, 600, 700, 800, 900, 1000, 1100, 1200)
 _C.TEST.AUG.MAX_SIZE = 4000
 _C.TEST.AUG.FLIP = True
 
-_C.TEST.PRECISE_BN = CN({"ENABLED": False})
+_C.TEST.PRECISE_BN = CfgNode({"ENABLED": False})
 _C.TEST.PRECISE_BN.NUM_ITER = 200
 
 # ---------------------------------------------------------------------------- #
@@ -624,5 +624,5 @@ _C.VIS_PERIOD = 0
 # print(global_cfg.HACK)
 #
 # Do not commit any configs into it.
-_C.GLOBAL = CN()
+_C.GLOBAL = CfgNode()
 _C.GLOBAL.HACK = 1.0

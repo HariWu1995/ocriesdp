@@ -3,7 +3,7 @@ import math
 from typing import List, Tuple
 import torch
 
-from detectron2.layers.rotated_boxes import pairwise_iou_rotated
+from models.layers.rotated_boxes import pairwise_iou_rotated
 
 from .boxes import Boxes, _maybe_jit_unused
 
@@ -16,7 +16,6 @@ class RotatedBoxes(Boxes):
     and also behaves like a Tensor
     (support indexing, `to(device)`, `.device`, and iteration over all boxes)
     """
-
     def __init__(self, tensor: torch.Tensor):
         """
         Args:
@@ -297,6 +296,7 @@ class RotatedBoxes(Boxes):
         # convert back to (xc, yc, w, h)
         self.tensor[idx, 0] = (x1 + x2) / 2.0
         self.tensor[idx, 1] = (y1 + y2) / 2.0
+
         # make sure widths and heights do not increase due to numerical errors
         self.tensor[idx, 2] = torch.min(self.tensor[idx, 2], x2 - x1)
         self.tensor[idx, 3] = torch.min(self.tensor[idx, 3], y2 - y1)
@@ -334,9 +334,8 @@ class RotatedBoxes(Boxes):
         if isinstance(item, int):
             return RotatedBoxes(self.tensor[item].view(1, -1))
         b = self.tensor[item]
-        assert b.dim() == 2, "Indexing on RotatedBoxes with {} failed to return a matrix!".format(
-            item
-        )
+        assert b.dim() == 2, \
+            f"Indexing on RotatedBoxes with {item} failed to return a matrix!"
         return RotatedBoxes(b)
 
     def __len__(self) -> int:
@@ -362,21 +361,22 @@ class RotatedBoxes(Boxes):
         """
         height, width = box_size
 
-        cnt_x = self.tensor[..., 0]
-        cnt_y = self.tensor[..., 1]
+        cnt_x  = self.tensor[..., 0]
+        cnt_y  = self.tensor[..., 1]
         half_w = self.tensor[..., 2] / 2.0
         half_h = self.tensor[..., 3] / 2.0
-        a = self.tensor[..., 4]
-        c = torch.abs(torch.cos(a * math.pi / 180.0))
-        s = torch.abs(torch.sin(a * math.pi / 180.0))
+        a      = self.tensor[..., 4]
+        c = torch.abs(torch.cos(a * math.pi / 180.))
+        s = torch.abs(torch.sin(a * math.pi / 180.))
+
         # This basically computes the horizontal bounding rectangle of the rotated box
         max_rect_dx = c * half_w + s * half_h
         max_rect_dy = c * half_h + s * half_w
 
         inds_inside = (
-            (cnt_x - max_rect_dx >= -boundary_threshold)
-            & (cnt_y - max_rect_dy >= -boundary_threshold)
-            & (cnt_x + max_rect_dx < width + boundary_threshold)
+              (cnt_x - max_rect_dx >=       - boundary_threshold)
+            & (cnt_y - max_rect_dy >=       - boundary_threshold)
+            & (cnt_x + max_rect_dx <  width + boundary_threshold)
             & (cnt_y + max_rect_dy < height + boundary_threshold)
         )
 
@@ -400,7 +400,7 @@ class RotatedBoxes(Boxes):
         """
         self.tensor[:, 0] *= scale_x
         self.tensor[:, 1] *= scale_y
-        theta = self.tensor[:, 4] * math.pi / 180.0
+        theta = self.tensor[:, 4] * math.pi / 180.
         c = torch.cos(theta)
         s = torch.sin(theta)
 

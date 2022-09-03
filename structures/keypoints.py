@@ -4,14 +4,11 @@ from typing import Any, List, Tuple, Union
 import torch
 from torch.nn import functional as F
 
-from detectron2.utils.env import TORCH_VERSION
+from utils.env import TORCH_VERSION
 
 if TORCH_VERSION < (1, 8):
-
     def script_if_tracing(fn):
         return fn
-
-
 else:
     script_if_tracing = torch.jit.script_if_tracing
 
@@ -28,7 +25,6 @@ class Keypoints:
     * v=1: labeled but not visible
     * v=2: labeled and visible
     """
-
     def __init__(self, keypoints: Union[torch.Tensor, np.ndarray, List[List[float]]]):
         """
         Arguments:
@@ -93,9 +89,8 @@ class Keypoints:
 
 
 # TODO make this nicer, this is a direct translation from C2 (but removing the inner loop)
-def _keypoints_to_heatmap(
-    keypoints: torch.Tensor, rois: torch.Tensor, heatmap_size: int
-) -> Tuple[torch.Tensor, torch.Tensor]:
+def _keypoints_to_heatmap(keypoints: torch.Tensor, 
+                               rois: torch.Tensor, heatmap_size: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Encode keypoint locations into a target heatmap for use in SoftmaxWithLoss across space.
 
@@ -135,14 +130,16 @@ def _keypoints_to_heatmap(
     y_boundary_inds = y == rois[:, 3][:, None]
 
     x = (x - offset_x) * scale_x
-    x = x.floor().long()
     y = (y - offset_y) * scale_y
+
+    x = x.floor().long()
     y = y.floor().long()
 
     x[x_boundary_inds] = heatmap_size - 1
     y[y_boundary_inds] = heatmap_size - 1
 
-    valid_loc = (x >= 0) & (y >= 0) & (x < heatmap_size) & (y < heatmap_size)
+    valid_loc = (x >= 0) & (x < heatmap_size) & \
+                (y >= 0) & (y < heatmap_size)
     vis = keypoints[..., 2] > 0
     valid = (valid_loc & vis).long()
 
@@ -194,10 +191,7 @@ def heatmaps_to_keypoints(maps: torch.Tensor, rois: torch.Tensor) -> torch.Tenso
     for i in range(num_rois):
         outsize = (int(heights_ceil[i]), int(widths_ceil[i]))
         roi_map = F.interpolate(
-            maps[[i]], size=outsize, mode="bicubic", align_corners=False
-        ).squeeze(
-            0
-        )  # #keypoints x H x W
+            maps[[i]], size=outsize, mode="bicubic", align_corners=False).squeeze(0)  # num_keypoints x H x W
 
         # softmax over the spatial region
         max_score, _ = roi_map.view(num_keypoints, -1).max(1)
@@ -215,8 +209,7 @@ def heatmaps_to_keypoints(maps: torch.Tensor, rois: torch.Tensor) -> torch.Tenso
         y_int = (pos - x_int) // w
 
         assert (
-            roi_map_scores[keypoints_idx, y_int, x_int]
-            == roi_map_scores.view(num_keypoints, -1).max(1)[0]
+            roi_map_scores[keypoints_idx, y_int, x_int] == roi_map_scores.view(num_keypoints, -1).max(1)[0]
         ).all()
 
         x = (x_int.float() + 0.5) * width_corrections[i]
@@ -224,7 +217,7 @@ def heatmaps_to_keypoints(maps: torch.Tensor, rois: torch.Tensor) -> torch.Tenso
 
         xy_preds[i, :, 0] = x + offset_x[i]
         xy_preds[i, :, 1] = y + offset_y[i]
-        xy_preds[i, :, 2] = roi_map[keypoints_idx, y_int, x_int]
+        xy_preds[i, :, 2] = roi_map[       keypoints_idx, y_int, x_int]
         xy_preds[i, :, 3] = roi_map_scores[keypoints_idx, y_int, x_int]
 
     return xy_preds

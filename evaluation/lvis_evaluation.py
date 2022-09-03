@@ -8,12 +8,12 @@ import pickle
 from collections import OrderedDict
 import torch
 
-import detectron2.utils.comm as comm
-from detectron2.config import CfgNode
-from detectron2.data import MetadataCatalog
-from detectron2.structures import Boxes, BoxMode, pairwise_iou
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import create_small_table
+from utils.comm.multi_gpu import is_main_process, synchronize, gather
+from config import CfgNode
+from data import MetadataCatalog
+from structures import Boxes, BoxMode, pairwise_iou
+from utils.io import PathManager
+from utils.logger import create_small_table
 
 from .coco_evaluation import instances_to_coco_json
 from .evaluator import DatasetEvaluator
@@ -44,8 +44,8 @@ class LVISEvaluator(DatasetEvaluator):
 
         if tasks is not None and isinstance(tasks, CfgNode):
             self._logger.warn(
-                "COCO Evaluator instantiated using config, this is deprecated behavior."
-                " Please pass in explicit arguments instead."
+                "COCO Evaluator instantiated using config, this is deprecated behavior. "
+                "Please pass in explicit arguments instead."
             )
             self._tasks = None  # Infering it from predictions should be better
         else:
@@ -53,10 +53,9 @@ class LVISEvaluator(DatasetEvaluator):
 
         self._distributed = distributed
         self._output_dir = output_dir
-
         self._cpu_device = torch.device("cpu")
-
         self._metadata = MetadataCatalog.get(dataset_name)
+
         json_file = PathManager.get_local_path(self._metadata.json_file)
         self._lvis_api = LVIS(json_file)
         # Test set json files do not contain annotations (evaluation must be
@@ -87,11 +86,11 @@ class LVISEvaluator(DatasetEvaluator):
 
     def evaluate(self):
         if self._distributed:
-            comm.synchronize()
-            predictions = comm.gather(self._predictions, dst=0)
+            synchronize()
+            predictions = gather(self._predictions, dst=0)
             predictions = list(itertools.chain(*predictions))
 
-            if not comm.is_main_process():
+            if not is_main_process():
                 return
         else:
             predictions = self._predictions
@@ -171,15 +170,15 @@ class LVISEvaluator(DatasetEvaluator):
             # Saving generated box proposals to file.
             # Predicted box_proposals are in XYXY_ABS mode.
             bbox_mode = BoxMode.XYXY_ABS.value
-            ids, boxes, objectness_logits = [], [], []
+            ids, boxes, obj_logits = [], [], []
             for prediction in predictions:
                 ids.append(prediction["image_id"])
                 boxes.append(prediction["proposals"].proposal_boxes.tensor.numpy())
-                objectness_logits.append(prediction["proposals"].objectness_logits.numpy())
+                obj_logits.append(prediction["proposals"].objectness_logits.numpy())
 
             proposal_data = {
                 "boxes": boxes,
-                "objectness_logits": objectness_logits,
+                "objectness_logits": obj_logits,
                 "ids": ids,
                 "bbox_mode": bbox_mode,
             }
@@ -213,21 +212,21 @@ def _evaluate_box_proposals(dataset_predictions, lvis_api, thresholds=None, area
     # Record max overlap value for each gt box
     # Return vector of overlap values
     areas = {
-        "all": 0,
-        "small": 1,
-        "medium": 2,
-        "large": 3,
-        "96-128": 4,
+            "all": 0,
+          "small": 1,
+         "medium": 2,
+          "large": 3,
+         "96-128": 4,
         "128-256": 5,
         "256-512": 6,
         "512-inf": 7,
     }
     area_ranges = [
-        [0 ** 2, 1e5 ** 2],  # all
-        [0 ** 2, 32 ** 2],  # small
-        [32 ** 2, 96 ** 2],  # medium
-        [96 ** 2, 1e5 ** 2],  # large
-        [96 ** 2, 128 ** 2],  # 96-128
+        [  0 ** 2, 1e5 ** 2],  # all
+        [  0 ** 2,  32 ** 2],  # small
+        [ 32 ** 2,  96 ** 2],  # medium
+        [ 96 ** 2, 1e5 ** 2],  # large
+        [ 96 ** 2, 128 ** 2],  # 96-128
         [128 ** 2, 256 ** 2],  # 128-256
         [256 ** 2, 512 ** 2],  # 256-512
         [512 ** 2, 1e5 ** 2],
@@ -279,8 +278,10 @@ def _evaluate_box_proposals(dataset_predictions, lvis_api, thresholds=None, area
             # find which gt box is 'best' covered (i.e. 'best' = most iou)
             gt_ovr, gt_ind = max_overlaps.max(dim=0)
             assert gt_ovr >= 0
+
             # find the proposal box that covers the best covered gt box
             box_ind = argmax_overlaps[gt_ind]
+
             # record the iou coverage of this gt box
             _gt_overlaps[j] = overlaps[box_ind, gt_ind]
             assert _gt_overlaps[j] == gt_ovr
@@ -290,18 +291,19 @@ def _evaluate_box_proposals(dataset_predictions, lvis_api, thresholds=None, area
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
-    gt_overlaps = (
-        torch.cat(gt_overlaps, dim=0) if len(gt_overlaps) else torch.zeros(0, dtype=torch.float32)
-    )
+    gt_overlaps = (torch.cat(gt_overlaps, dim=0) \
+                        if len(gt_overlaps) else torch.zeros(0, dtype=torch.float32))
     gt_overlaps, _ = torch.sort(gt_overlaps)
 
     if thresholds is None:
         step = 0.05
         thresholds = torch.arange(0.5, 0.95 + 1e-5, step, dtype=torch.float32)
     recalls = torch.zeros_like(thresholds)
+
     # compute recall for each iou threshold
     for i, t in enumerate(thresholds):
         recalls[i] = (gt_overlaps >= t).float().sum() / float(num_pos)
+    
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
     return {

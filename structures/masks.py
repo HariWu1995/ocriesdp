@@ -6,7 +6,7 @@ from typing import Any, Iterator, List, Union
 import pycocotools.mask as mask_util
 import torch
 
-from detectron2.layers.roi_align import ROIAlign
+from models.layers.roi_align import ROIAlign
 
 from .boxes import Boxes
 
@@ -32,9 +32,8 @@ def polygons_to_bitmask(polygons: List[np.ndarray], height: int, width: int) -> 
     return mask_util.decode(rle).astype(np.bool)
 
 
-def rasterize_polygons_within_box(
-    polygons: List[np.ndarray], box: np.ndarray, mask_size: int
-) -> torch.Tensor:
+def rasterize_polygons_within_box(polygons: List[np.ndarray], 
+                                            box: np.ndarray, mask_size: int) -> torch.Tensor:
     """
     Rasterize the polygons into a mask image and
     crop the mask content in the given box.
@@ -89,7 +88,6 @@ class BitMasks:
     Attributes:
         tensor: bool Tensor of N,H,W, representing N instances in the image.
     """
-
     def __init__(self, tensor: Union[torch.Tensor, np.ndarray]):
         """
         Args:
@@ -126,9 +124,7 @@ class BitMasks:
         if isinstance(item, int):
             return BitMasks(self.tensor[item].view(1, -1))
         m = self.tensor[item]
-        assert m.dim() == 3, "Indexing on BitMasks with {} returns a tensor with shape {}!".format(
-            item, m.shape
-        )
+        assert m.dim() == 3, f"Indexing on BitMasks with {item} returns a tensor with shape {m.shape}!"
         return BitMasks(m)
 
     def __iter__(self) -> torch.Tensor:
@@ -153,9 +149,8 @@ class BitMasks:
         return self.tensor.flatten(1).any(dim=1)
 
     @staticmethod
-    def from_polygon_masks(
-        polygon_masks: Union["PolygonMasks", List[List[np.ndarray]]], height: int, width: int
-    ) -> "BitMasks":
+    def from_polygon_masks(polygon_masks: Union["PolygonMasks", List[List[np.ndarray]]], 
+                            height: int, width: int) -> "BitMasks":
         """
         Args:
             polygon_masks (list[list[ndarray]] or PolygonMasks)
@@ -183,7 +178,7 @@ class BitMasks:
                 A bool tensor of shape (N, mask_size, mask_size), where
                 N is the number of predicted boxes for this image.
         """
-        assert len(boxes) == len(self), "{} != {}".format(len(boxes), len(self))
+        assert len(boxes) == len(self), f"{len(boxes)} != {len(self)}"
         device = self.tensor.device
 
         batch_inds = torch.arange(len(boxes), device=device).to(dtype=boxes.dtype)[:, None]
@@ -191,11 +186,7 @@ class BitMasks:
 
         bit_masks = self.tensor.to(dtype=torch.float32)
         rois = rois.to(device=device)
-        output = (
-            ROIAlign((mask_size, mask_size), 1.0, 0, aligned=True)
-            .forward(bit_masks[:, None, :, :], rois)
-            .squeeze(1)
-        )
+        output = ROIAlign((mask_size, mask_size), 1., 0, aligned=True).forward(bit_masks[:,None,:,:], rois).squeeze(1)
         output = output >= 0.5
         return output
 
@@ -212,9 +203,7 @@ class BitMasks:
             x = torch.where(x_any[idx, :])[0]
             y = torch.where(y_any[idx, :])[0]
             if len(x) > 0 and len(y) > 0:
-                boxes[idx, :] = torch.as_tensor(
-                    [x[0], y[0], x[-1] + 1, y[-1] + 1], dtype=torch.float32
-                )
+                boxes[idx, :] = torch.as_tensor([x[0], y[0], x[-1]+1, y[-1]+1], dtype=torch.float32)
         return Boxes(boxes)
 
     @staticmethod
@@ -229,7 +218,7 @@ class BitMasks:
             BitMasks: the concatenated BitMasks
         """
         assert isinstance(bitmasks_list, (list, tuple))
-        assert len(bitmasks_list) > 0
+        assert          len(bitmasks_list) > 0
         assert all(isinstance(bitmask, BitMasks) for bitmask in bitmasks_list)
 
         cat_bitmasks = type(bitmasks_list[0])(torch.cat([bm.tensor for bm in bitmasks_list], dim=0))
@@ -243,7 +232,6 @@ class PolygonMasks:
     Attributes:
         polygons: list[list[ndarray]]. Each ndarray is a float64 vector representing a polygon.
     """
-
     def __init__(self, polygons: List[List[Union[torch.Tensor, np.ndarray]]]):
         """
         Arguments:
@@ -269,9 +257,7 @@ class PolygonMasks:
                 t = t.cpu().numpy()
             return np.asarray(t).astype("float64")
 
-        def process_polygons(
-            polygons_per_instance: List[Union[torch.Tensor, np.ndarray]]
-        ) -> List[np.ndarray]:
+        def process_polygons(polygons_per_instance: List[Union[torch.Tensor, np.ndarray]]) -> List[np.ndarray]:
             if not isinstance(polygons_per_instance, list):
                 raise ValueError(
                     "Cannot create polygons: Expect a list of polygons per instance. "
@@ -390,8 +376,8 @@ class PolygonMasks:
         boxes = boxes.to(torch.device("cpu"))
 
         results = [
-            rasterize_polygons_within_box(poly, box.numpy(), mask_size)
-            for poly, box in zip(self.polygons, boxes)
+            rasterize_polygons_within_box(poly, box.numpy(), mask_size) 
+                                      for poly, box in zip(self.polygons, boxes)
         ]
         """
         poly: list[list[float]], the polygons for one instance
@@ -410,7 +396,6 @@ class PolygonMasks:
         Returns:
             Tensor: a vector, area for each instance
         """
-
         area = []
         for polygons_per_instance in self.polygons:
             area_per_instance = 0
@@ -439,3 +424,6 @@ class PolygonMasks:
             list(itertools.chain.from_iterable(pm.polygons for pm in polymasks_list))
         )
         return cat_polymasks
+
+
+

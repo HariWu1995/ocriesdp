@@ -1,8 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-from detectron2.layers import ShapeSpec
+from layers import ShapeSpec
 
 from .anchor_generator import build_anchor_generator, ANCHOR_GENERATOR_REGISTRY
-from .backbone import (
+from .backbones import (
     BACKBONE_REGISTRY,
     FPN,
     Backbone,
@@ -52,7 +52,7 @@ _EXCLUDE = {"ShapeSpec"}
 __all__ = [k for k in globals().keys() if k not in _EXCLUDE and not k.startswith("_")]
 
 
-from detectron2.utils.env import fixup_module_metadata
+from utils.env import fixup_module_metadata
 
 fixup_module_metadata(__name__, globals(), __all__)
 del fixup_module_metadata

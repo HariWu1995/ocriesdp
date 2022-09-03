@@ -5,7 +5,8 @@ import types
 from collections import UserDict
 from typing import List
 
-from detectron2.utils.logger import log_first_n
+from utils.logger import log_first_n
+
 
 __all__ = ["DatasetCatalog", "MetadataCatalog", "Metadata"]
 
@@ -51,9 +52,7 @@ class _DatasetCatalog(UserDict):
             f = self[name]
         except KeyError as e:
             raise KeyError(
-                "Dataset '{}' is not registered! Available datasets are: {}".format(
-                    name, ", ".join(list(self.keys()))
-                )
+                f"Dataset '{name}' is not registered! Available datasets are: {','.join(list(self.keys()))}"
             ) from e
         return f()
 
@@ -101,7 +100,6 @@ class Metadata(types.SimpleNamespace):
         # somewhere when you print statistics or visualize:
         classes = MetadataCatalog.get("mydataset").thing_classes
     """
-
     # the name of the dataset
     # set default to N/A so that `self.name` in the errors will not trigger getattr again
     name: str = "N/A"
@@ -116,7 +114,7 @@ class Metadata(types.SimpleNamespace):
         if key in self._RENAMED:
             log_first_n(
                 logging.WARNING,
-                "Metadata '{}' was renamed to '{}'!".format(key, self._RENAMED[key]),
+                f"Metadata '{key}' was renamed to '{self._RENAMED[key]}'!",
                 n=10,
             )
             return getattr(self, self._RENAMED[key])
@@ -124,8 +122,8 @@ class Metadata(types.SimpleNamespace):
         # "name" exists in every metadata
         if len(self.__dict__) > 1:
             raise AttributeError(
-                "Attribute '{}' does not exist in the metadata of dataset '{}'. Available "
-                "keys are {}.".format(key, self.name, str(self.__dict__.keys()))
+                f"Attribute '{key}' does not exist in the metadata of dataset '{self.name}'. "
+                f"Available keys are {str(self.__dict__.keys())}."
             )
         else:
             raise AttributeError(
@@ -137,7 +135,7 @@ class Metadata(types.SimpleNamespace):
         if key in self._RENAMED:
             log_first_n(
                 logging.WARNING,
-                "Metadata '{}' was renamed to '{}'!".format(key, self._RENAMED[key]),
+                f"Metadata '{key}' was renamed to '{self._RENAMED[key]}'!",
                 n=10,
             )
             setattr(self, self._RENAMED[key], val)
@@ -146,8 +144,8 @@ class Metadata(types.SimpleNamespace):
         try:
             oldval = getattr(self, key)
             assert oldval == val, (
-                "Attribute '{}' in the metadata of '{}' cannot be set "
-                "to a different value!\n{} != {}".format(key, self.name, oldval, val)
+                f"Attribute '{key}' in the metadata of '{self.name}' cannot be set "
+                f"to a different value!\n{oldval} != {val}"
             )
         except AttributeError:
             super().__setattr__(key, val)
@@ -190,7 +188,6 @@ class _MetadataCatalog(UserDict):
     It's meant for storing knowledge that's constant and shared across the execution
     of the program, e.g.: the class names in COCO.
     """
-
     def get(self, name):
         """
         Args:

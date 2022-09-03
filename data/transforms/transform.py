@@ -1,21 +1,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) Facebook, Inc. and its affiliates.
-
 """
 See "Data Augmentation" tutorial for an overview of the system:
 https://detectron2.readthedocs.io/tutorials/augmentation.html
 """
-
 import numpy as np
 import torch
 import torch.nn.functional as F
-from fvcore.transforms.transform import (
-    CropTransform,
-    HFlipTransform,
-    NoOpTransform,
-    Transform,
-    TransformList,
-)
+from fvcore.transforms.transform import CropTransform, HFlipTransform, NoOpTransform, Transform, TransformList
 from PIL import Image
 
 try:
@@ -23,6 +15,7 @@ try:
 except ImportError:
     # OpenCV is an optional dependency at the moment
     pass
+
 
 __all__ = [
     "ExtentTransform",
@@ -42,7 +35,6 @@ class ExtentTransform(Transform):
 
     See: https://pillow.readthedocs.io/en/latest/PIL.html#PIL.ImageTransform.ExtentTransform
     """
-
     def __init__(self, src_rect, output_size, interp=Image.LINEAR, fill=0):
         """
         Args:
@@ -95,7 +87,6 @@ class ResizeTransform(Transform):
     """
     Resize the image to a target size.
     """
-
     def __init__(self, h, w, new_h, new_w, interp=None):
         """
         Args:
@@ -164,7 +155,6 @@ class RotationTransform(Transform):
     This method returns a copy of this image, rotated the given
     number of degrees counter clockwise around its center.
     """
-
     def __init__(self, h, w, angle, expand=True, center=None, interp=None):
         """
         Args:
@@ -238,12 +228,9 @@ class RotationTransform(Transform):
         """
         if not self.expand:  # Not possible to inverse if a part of the image is lost
             raise NotImplementedError()
-        rotation = RotationTransform(
-            self.bound_h, self.bound_w, -self.angle, True, None, self.interp
-        )
-        crop = CropTransform(
-            (rotation.bound_w - self.w) // 2, (rotation.bound_h - self.h) // 2, self.w, self.h
-        )
+        rotation = RotationTransform(self.bound_h, self.bound_w, -self.angle, True, None, self.interp)
+        crop = CropTransform((rotation.bound_w - self.w) // 2, 
+                             (rotation.bound_h - self.h) // 2, self.w, self.h)
         return TransformList([rotation, crop])
 
 
@@ -254,7 +241,6 @@ class ColorTransform(Transform):
         not the coordinate space of the image (e.g. annotation
         coordinates such as bounding boxes should not be changed)
     """
-
     def __init__(self, op):
         """
         Args:
@@ -285,7 +271,6 @@ class PILColorTransform(ColorTransform):
         which affect the color space and not the coordinate
         space of the image
     """
-
     def __init__(self, op):
         """
         Args:

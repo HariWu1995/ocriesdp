@@ -13,6 +13,7 @@ try:
 except ImportError:
     from io import StringIO
 
+
 def print_help():
     sys.stdout.write('Usage: python %s.py -g=<gtFile> -s=<submFile> [-o=<outputFolder> -p=<jsonParams>]' %sys.argv[0])
     sys.exit(2)
@@ -78,6 +79,7 @@ def load_zip_file(file,fileNameRegExp='',allEntries=False):
 
     return dict(pairs)
 	
+
 def decode_utf8(raw):
     """
     Returns a Unicode object on success, or None on failure
@@ -92,7 +94,9 @@ def decode_utf8(raw):
     except:
        return None
    
-def validate_lines_in_file(fileName,file_contents,CRLF=True,LTRB=True,withTranscription=False,withConfidence=False,imWidth=0,imHeight=0):
+
+def validate_lines_in_file(fileName, file_contents, CRLF=True, LTRB=True, 
+                            withTranscription=False, withConfidence=False, imWidth=0, imHeight=0):
     """
     This function validates that all lines of the file calling the Line validation function for each line
     """
@@ -105,13 +109,12 @@ def validate_lines_in_file(fileName,file_contents,CRLF=True,LTRB=True,withTransc
         line = line.replace("\r","").replace("\n","")
         if(line != ""):
             try:
-                validate_tl_line(line,LTRB,withTranscription,withConfidence,imWidth,imHeight)
+                validate_tl_line(line, LTRB, withTranscription, withConfidence, imWidth, imHeight)
             except Exception as e:
-                raise Exception(("Line in sample not valid. Sample: %s Line: %s Error: %s" %(fileName,line,str(e))).encode('utf-8', 'replace'))
-    
+                raise Exception(("Line in sample not valid. Sample: %s Line: %s Error: %s" % (fileName, line, str(e))).encode('utf-8', 'replace'))
+
    
-   
-def validate_tl_line(line,LTRB=True,withTranscription=True,withConfidence=True,imWidth=0,imHeight=0):
+def validate_tl_line(line, LTRB=True, withTranscription=True, withConfidence=True, imWidth=0, imHeight=0):
     """
     Validate the format of the line. If the line is not valid an exception will be raised.
     If maxWidth and maxHeight are specified, all points must be inside the imgage bounds.
@@ -119,43 +122,44 @@ def validate_tl_line(line,LTRB=True,withTranscription=True,withConfidence=True,i
     LTRB=True: xmin,ymin,xmax,ymax[,confidence][,transcription] 
     LTRB=False: x1,y1,x2,y2,x3,y3,x4,y4[,confidence][,transcription] 
     """
-    get_tl_line_values(line,LTRB,withTranscription,withConfidence,imWidth,imHeight)
+    get_tl_line_values(line, LTRB, withTranscription, withConfidence, imWidth, imHeight)
     
    
-def get_tl_line_values(line,LTRB=True,withTranscription=False,withConfidence=False,imWidth=0,imHeight=0):
+def get_tl_line_values(line, LTRB=True, withTranscription=False, withConfidence=False, imWidth=0, imHeight=0):
     """
     Validate the format of the line. If the line is not valid an exception will be raised.
     If maxWidth and maxHeight are specified, all points must be inside the imgage bounds.
     Posible values are:
-    LTRB=True: xmin,ymin,xmax,ymax[,confidence][,transcription] 
-    LTRB=False: x1,y1,x2,y2,x3,y3,x4,y4[,confidence][,transcription] 
+    LTRB = True  : xmin, ymin, xmax, ymax, [confidence], [transcription] 
+    LTRB = False : x1, y1, x2, y2, x3, y3, x4, y4, [confidence], [transcription] 
+
     Returns values from a textline. Points , [Confidences], [Transcriptions]
     """
     confidence = 0.0
-    transcription = "";
+    transcription = ""
     points = []
     
-    numPoints = 4;
+    numPoints = 4
     
     if LTRB:
     
-        numPoints = 4;
+        numPoints = 4
         
         if withTranscription and withConfidence:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$', line)
             if m == None :
-                m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$',line)
+                m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$', line)
                 raise Exception("Format incorrect. Should be: xmin,ymin,xmax,ymax,confidence,transcription")
         elif withConfidence:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-1].?[0-9]*)\s*$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: xmin,ymin,xmax,ymax,confidence")
         elif withTranscription:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,(.*)$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,(.*)$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: xmin,ymin,xmax,ymax,transcription")
         else:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,?\s*$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,?\s*$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: xmin,ymin,xmax,ymax")
             
@@ -164,33 +168,33 @@ def get_tl_line_values(line,LTRB=True,withTranscription=False,withConfidence=Fal
         xmax = int(m.group(3))
         ymax = int(m.group(4))
         if(xmax<xmin):
-                raise Exception("Xmax value (%s) not valid (Xmax < Xmin)." %(xmax))
+                raise Exception("Xmax value (%s) not valid (Xmax < Xmin)." % (xmax))
         if(ymax<ymin):
-                raise Exception("Ymax value (%s)  not valid (Ymax < Ymin)." %(ymax))  
+                raise Exception("Ymax value (%s)  not valid (Ymax < Ymin)." % (ymax))  
 
         points = [ float(m.group(i)) for i in range(1, (numPoints+1) ) ]
         
         if (imWidth>0 and imHeight>0):
-            validate_point_inside_bounds(xmin,ymin,imWidth,imHeight);
-            validate_point_inside_bounds(xmax,ymax,imWidth,imHeight);
+            validate_point_inside_bounds(xmin, ymin, imWidth, imHeight)
+            validate_point_inside_bounds(xmax, ymax, imWidth, imHeight)
 
     else:
-        numPoints = 8;
+        numPoints = 8
         
         if withTranscription and withConfidence:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-1].?[0-9]*)\s*,(.*)$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence,transcription")
         elif withConfidence:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-1].?[0-9]*)\s*$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*([0-1].?[0-9]*)\s*$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence")
         elif withTranscription:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,(.*)$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,(.*)$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,transcription")
         else:
-            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*$',line)
+            m = re.match(r'^\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*,\s*(-?[0-9]+)\s*$', line)
             if m == None :
                 raise Exception("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4")
             
@@ -198,11 +202,10 @@ def get_tl_line_values(line,LTRB=True,withTranscription=False,withConfidence=Fal
         validate_clockwise_points(points)
         
         if (imWidth>0 and imHeight>0):
-            validate_point_inside_bounds(points[0],points[1],imWidth,imHeight);
-            validate_point_inside_bounds(points[2],points[3],imWidth,imHeight);
-            validate_point_inside_bounds(points[4],points[5],imWidth,imHeight);
-            validate_point_inside_bounds(points[6],points[7],imWidth,imHeight);
-            
+            validate_point_inside_bounds(points[0], points[1], imWidth, imHeight)
+            validate_point_inside_bounds(points[2], points[3], imWidth, imHeight)
+            validate_point_inside_bounds(points[4], points[5], imWidth, imHeight)
+            validate_point_inside_bounds(points[6], points[7], imWidth, imHeight)            
     
     if withConfidence:
         try:
@@ -214,48 +217,56 @@ def get_tl_line_values(line,LTRB=True,withTranscription=False,withConfidence=Fal
         posTranscription = numPoints + (2 if withConfidence else 1)
         transcription = m.group(posTranscription)
         m2 = re.match(r'^\s*\"(.*)\"\s*$',transcription)
-        if m2 != None : #Transcription with double quotes, we extract the value and replace escaped characters
+        if m2 != None : 
+            # Transcription with double quotes, we extract the value and replace escaped characters
             transcription = m2.group(1).replace("\\\\", "\\").replace("\\\"", "\"")
     
     return points,confidence,transcription
     
             
-def validate_point_inside_bounds(x,y,imWidth,imHeight):
-    if(x<0 or x>imWidth):
-            raise Exception("X value (%s) not valid. Image dimensions: (%s,%s)" %(xmin,imWidth,imHeight))
-    if(y<0 or y>imHeight):
-            raise Exception("Y value (%s)  not valid. Image dimensions: (%s,%s) Sample: %s Line:%s" %(ymin,imWidth,imHeight))
+def validate_point_inside_bounds(x, y, imWidth, imHeight):
+    if (x < 0 or x > imWidth):
+            raise Exception("X value (%s) not valid. Image dimensions: (%s,%s)" % (x, imWidth, imHeight))
+    if (y < 0 or y > imHeight):
+            raise Exception("Y value (%s) not valid. Image dimensions: (%s,%s)" % (y, imWidth, imHeight))
 
 def validate_clockwise_points(points):
     """
     Validates that the points that the 4 points that dlimite a polygon are in clockwise order.
     """
-    
     if len(points) != 8:
         raise Exception("Points list not valid." + str(len(points)))
     
     point = [
-                [int(points[0]) , int(points[1])],
-                [int(points[2]) , int(points[3])],
-                [int(points[4]) , int(points[5])],
-                [int(points[6]) , int(points[7])]
-            ]
+        [int(points[0]) , int(points[1])],
+        [int(points[2]) , int(points[3])],
+        [int(points[4]) , int(points[5])],
+        [int(points[6]) , int(points[7])]
+    ]
     edge = [
-                ( point[1][0] - point[0][0])*( point[1][1] + point[0][1]),
-                ( point[2][0] - point[1][0])*( point[2][1] + point[1][1]),
-                ( point[3][0] - point[2][0])*( point[3][1] + point[2][1]),
-                ( point[0][0] - point[3][0])*( point[0][1] + point[3][1])
+        (point[1][0] - point[0][0]) * (point[1][1] + point[0][1]),
+        (point[2][0] - point[1][0]) * (point[2][1] + point[1][1]),
+        (point[3][0] - point[2][0]) * (point[3][1] + point[2][1]),
+        (point[0][0] - point[3][0]) * (point[0][1] + point[3][1]),
     ]
     
-    summatory = edge[0] + edge[1] + edge[2] + edge[3];
-    if summatory>0:
-        raise Exception("Points are not clockwise. The coordinates of bounding quadrilaterals have to be given in clockwise order. Regarding the correct interpretation of 'clockwise' remember that the image coordinate system used is the standard one, with the image origin at the upper left, the X axis extending to the right and Y axis extending downwards.")
+    summatory = edge[0] + edge[1] + edge[2] + edge[3]
+    if summatory > 0:
+        raise Exception(
+            "Points are not clockwise. "
+            "The coordinates of bounding quadrilaterals have to be given in clockwise order. "
+            "Regarding the correct interpretation of 'clockwise', "
+            "remember that image coordinate system used is the standard one, "
+            "with the image origin at the upper left, the X axis extending to the right and Y axis extending downwards."
+        )
 
-def get_tl_line_values_from_file_contents(content,CRLF=True,LTRB=True,withTranscription=False,withConfidence=False,imWidth=0,imHeight=0,sort_by_confidences=True):
+
+def get_tl_line_values_from_file_contents(content, CRLF=True, LTRB=True, withTranscription=False, withConfidence=False,
+                                          imWidth=0, imHeight=0, sort_by_confidences=True):
     """
     Returns all points, confindences and transcriptions of a file in lists. Valid line formats:
-    xmin,ymin,xmax,ymax,[confidence],[transcription]
-    x1,y1,x2,y2,x3,y3,x4,y4,[confidence],[transcription]
+    xmin, ymin, xmax, ymax, [confidence], [transcription]
+    x1, y1, x2, y2, x3, y3, x4, y4, [confidence], [transcription]
     """
     pointsList = []
     transcriptionsList = []
@@ -265,21 +276,23 @@ def get_tl_line_values_from_file_contents(content,CRLF=True,LTRB=True,withTransc
     for line in lines:
         line = line.replace("\r","").replace("\n","")
         if(line != "") :
-            points, confidence, transcription = get_tl_line_values(line,LTRB,withTranscription,withConfidence,imWidth,imHeight);
+            points, confidence, transcription = get_tl_line_values(line, LTRB, withTranscription, withConfidence, imWidth, imHeight)
             pointsList.append(points)
-            transcriptionsList.append(transcription)
             confidencesList.append(confidence)
+            transcriptionsList.append(transcription)
 
     if withConfidence and len(confidencesList)>0 and sort_by_confidences:
         import numpy as np
         sorted_ind = np.argsort(-np.array(confidencesList))
-        confidencesList = [confidencesList[i] for i in sorted_ind]
-        pointsList = [pointsList[i] for i in sorted_ind]
+        confidencesList    = [   confidencesList[i] for i in sorted_ind]
+        pointsList         = [        pointsList[i] for i in sorted_ind]
         transcriptionsList = [transcriptionsList[i] for i in sorted_ind]        
         
-    return pointsList,confidencesList,transcriptionsList
+    return pointsList, confidencesList, transcriptionsList
 
-def main_evaluation(p,default_evaluation_params_fn,validate_data_fn,evaluate_method_fn,show_result=True,per_sample=True):
+
+def main_evaluation(p, default_evaluation_params_fn, validate_data_fn, evaluate_method_fn,
+                    show_result=True, per_sample=True):
     """
     This process validates a method, evaluates it and if it succed generates a ZIP file with a JSON entry for each sample.
     Params:
@@ -288,17 +301,16 @@ def main_evaluation(p,default_evaluation_params_fn,validate_data_fn,evaluate_met
     validate_data_fn: points to a method that validates the corrct format of the submission
     evaluate_method_fn: points to a function that evaluated the submission and return a Dictionary with the results
     """
-    
-    if (p == None):
+    if p is None:
         p = dict([s[1:].split('=') for s in sys.argv[1:]])
-        if(len(sys.argv)<3):
+        if len(sys.argv) < 3:
             print_help()
 
     evalParams = default_evaluation_params_fn()
     if 'p' in p.keys():
         evalParams.update( p['p'] if isinstance(p['p'], dict) else json.loads(p['p'][1:-1]) )
 
-    resDict={'calculated':True,'Message':'','method':'{}','per_sample':'{}'}    
+    resDict = {'calculated':True,'Message':'','method':'{}','per_sample':'{}'}    
     try:
         validate_data_fn(p['g'], p['s'], evalParams)  
         evalData = evaluate_method_fn(p['g'], p['s'], evalParams)
@@ -346,7 +358,7 @@ def main_evaluation(p,default_evaluation_params_fn,validate_data_fn,evaluate_met
     return resDict
 
 
-def main_validation(default_evaluation_params_fn,validate_data_fn):
+def main_validation(default_evaluation_params_fn, validate_data_fn):
     """
     This process validates a method
     Params:
@@ -362,6 +374,7 @@ def main_validation(default_evaluation_params_fn,validate_data_fn):
         validate_data_fn(p['g'], p['s'], evalParams)              
         print('SUCCESS')
         sys.exit(0)
+        
     except Exception as e:
         print(str(e))
         sys.exit(101)

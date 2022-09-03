@@ -5,13 +5,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from detectron2.layers.batch_norm import  get_norm
-from detectron2.layers.shape_spec import ShapeSpec
-from detectron2.layers.wrappers import Conv2d
-from detectron2.layers.blocks import CNNBlockBase
+from models.layers.normalization.batch_norm import get_norm
+from models.layers.common import ShapeSpec
+from models.layers.convolution.base import Conv2d, CNNBlockBase
 
-from detectron2.modeling.backbone.backbone import Backbone
-from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
+from models.backbones.base import Backbone
+from models.backbones.build import BACKBONE_REGISTRY
 
 
 __all__ = [

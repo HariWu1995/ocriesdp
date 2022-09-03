@@ -4,10 +4,10 @@ import contextlib
 from unittest import mock
 import torch
 
-from detectron2.modeling import poolers
-from detectron2.modeling.proposal_generator import rpn
-from detectron2.modeling.roi_heads import keypoint_head, mask_head
-from detectron2.modeling.roi_heads.fast_rcnn import FastRCNNOutputLayers
+from models import poolers
+from models.proposal_generator import rpn
+from models.roi_heads.fast_rcnn import FastRCNNOutputLayers
+from models.roi_heads import keypoint_head, mask_head
 
 from .c10 import (
     Caffe2Compatible,
@@ -28,7 +28,6 @@ class Caffe2CompatibleConverter(object):
     A GenericUpdater which implements the `create_from` interface, by modifying
     module object and assign it with another class replaceCls.
     """
-
     def __init__(self, replaceCls):
         self.replaceCls = replaceCls
 
@@ -76,15 +75,9 @@ def patch_generalized_rcnn(model):
 
 
 @contextlib.contextmanager
-def mock_fastrcnn_outputs_inference(
-    tensor_mode, check=True, box_predictor_type=FastRCNNOutputLayers
-):
-    with mock.patch.object(
-        box_predictor_type,
-        "inference",
-        autospec=True,
-        side_effect=Caffe2FastRCNNOutputsInference(tensor_mode),
-    ) as mocked_func:
+def mock_fastrcnn_outputs_inference(tensor_mode, check=True, box_predictor_type=FastRCNNOutputLayers):
+    with mock.patch.object(box_predictor_type, "inference", autospec=True,
+                            side_effect=Caffe2FastRCNNOutputsInference(tensor_mode),) as mocked_func:
         yield
     if check:
         assert mocked_func.call_count > 0
@@ -92,9 +85,8 @@ def mock_fastrcnn_outputs_inference(
 
 @contextlib.contextmanager
 def mock_mask_rcnn_inference(tensor_mode, patched_module, check=True):
-    with mock.patch(
-        "{}.mask_rcnn_inference".format(patched_module), side_effect=Caffe2MaskRCNNInference()
-    ) as mocked_func:
+    with mock.patch("{}.mask_rcnn_inference".format(patched_module), 
+                    side_effect=Caffe2MaskRCNNInference()) as mocked_func:
         yield
     if check:
         assert mocked_func.call_count > 0
@@ -102,16 +94,15 @@ def mock_mask_rcnn_inference(tensor_mode, patched_module, check=True):
 
 @contextlib.contextmanager
 def mock_keypoint_rcnn_inference(tensor_mode, patched_module, use_heatmap_max_keypoint, check=True):
-    with mock.patch(
-        "{}.keypoint_rcnn_inference".format(patched_module),
-        side_effect=Caffe2KeypointRCNNInference(use_heatmap_max_keypoint),
-    ) as mocked_func:
+    with mock.patch("{}.keypoint_rcnn_inference".format(patched_module),
+                    side_effect=Caffe2KeypointRCNNInference(use_heatmap_max_keypoint),) as mocked_func:
         yield
     if check:
         assert mocked_func.call_count > 0
 
 
 class ROIHeadsPatcher:
+
     def __init__(self, heads, use_heatmap_max_keypoint):
         self.heads = heads
         self.use_heatmap_max_keypoint = use_heatmap_max_keypoint
@@ -131,20 +122,16 @@ class ROIHeadsPatcher:
         mask_head_mod = mask_head.BaseMaskRCNNHead.__module__
 
         mock_ctx_managers = [
-            mock_fastrcnn_outputs_inference(
-                tensor_mode=tensor_mode,
-                check=True,
-                box_predictor_type=type(self.heads.box_predictor),
-            )
+            mock_fastrcnn_outputs_inference(tensor_mode=tensor_mode, check=True, box_predictor_type=type(self.heads.box_predictor),)
         ]
         if getattr(self.heads, "keypoint_on", False):
             mock_ctx_managers += [
-                mock_keypoint_rcnn_inference(
-                    tensor_mode, kpt_heads_mod, self.use_heatmap_max_keypoint
-                )
+                mock_keypoint_rcnn_inference(tensor_mode, kpt_heads_mod, self.use_heatmap_max_keypoint)
             ]
         if getattr(self.heads, "mask_on", False):
-            mock_ctx_managers += [mock_mask_rcnn_inference(tensor_mode, mask_head_mod)]
+            mock_ctx_managers += [
+                mock_mask_rcnn_inference(tensor_mode, mask_head_mod)
+            ]
 
         with contextlib.ExitStack() as stack:  # python 3.3+
             for mgr in mock_ctx_managers:

@@ -1,8 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
+from typing import Dict, List
 import copy
 import logging
 import re
-from typing import Dict, List
 import torch
 from tabulate import tabulate
 
@@ -186,16 +186,14 @@ def convert_c2_detectron_names(weights):
             new_start_idx = 4 if renamed.startswith("bbox_pred.") else 1
             new_weights[renamed] = weights[orig][new_start_idx:]
             logger.info(
-                "Remove prediction weight for background class in {}. The shape changes from "
-                "{} to {}.".format(
-                    renamed, tuple(weights[orig].shape), tuple(new_weights[renamed].shape)
-                )
+                f"Remove prediction weight for background class in {renamed}. The shape changes from "
+                f"{tuple(weights[orig].shape)} to {tuple(new_weights[renamed].shape)}."
             )
         elif renamed.startswith("cls_score."):
             # move weights of bg class from original index 0 to last index
             logger.info(
-                "Move classification weights for background class in {} from index 0 to "
-                "index {}.".format(renamed, weights[orig].shape[0] - 1)
+                f"Move classification weights for background class in {renamed} from index 0 to "
+                f"index {weights[orig].shape[0] - 1}."
             )
             new_weights[renamed] = torch.cat([weights[orig][1:], weights[orig][:1]])
         else:
@@ -241,16 +239,18 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict, c2_conversio
         # but matches whatever_conv1 or mesh_head.whatever_conv1.
         return a == b or a.endswith("." + b)
 
-    # get a matrix of string matches, where each (i, j) entry correspond to the size of the
-    # ckpt_key string, if it matches
+    # get a matrix of string matches, where each (i, j) entry correspond to the size of ckpt_key string, if it matches
     match_matrix = [len(j) if match(i, j) else 0 for i in model_keys for j in ckpt_keys]
     match_matrix = torch.as_tensor(match_matrix).view(len(model_keys), len(ckpt_keys))
+
     # use the matched one with longest size in case of multiple matches
     max_match_size, idxs = match_matrix.max(1)
+
     # remove indices that correspond to no-match
     idxs[max_match_size == 0] = -1
 
     logger = logging.getLogger(__name__)
+
     # matched_pairs (matched checkpoint key --> matched model key)
     matched_keys = {}
     result_state_dict = {}
@@ -264,14 +264,11 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict, c2_conversio
 
         if shape_in_model != value_ckpt.shape:
             logger.warning(
-                "Shape of {} in checkpoint is {}, while shape of {} in model is {}.".format(
-                    key_ckpt, value_ckpt.shape, key_model, shape_in_model
-                )
+                f"Shape of {key_ckpt} in checkpoint is {value_ckpt.shape}, "
+                f"while shape of {key_model} in model is {shape_in_model}."
             )
             logger.warning(
-                "{} will not be loaded. Please double check and see if this is desired.".format(
-                    key_ckpt
-                )
+                f"{key_ckpt} will not be loaded. Please double check and see if this is desired."
             )
             continue
 
@@ -279,10 +276,8 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict, c2_conversio
         result_state_dict[key_model] = value_ckpt
         if key_ckpt in matched_keys:  # already added to matched_keys
             logger.error(
-                "Ambiguity found for {} in checkpoint!"
-                "It matches at least two keys in the model ({} and {}).".format(
-                    key_ckpt, key_model, matched_keys[key_ckpt]
-                )
+                f"Ambiguity found for {key_ckpt} in checkpoint!"
+                f"It matches at least 2 keys in the model ({key_model} and {matched_keys[key_ckpt]})."
             )
             raise ValueError("Cannot match one checkpoint key to multiple keys in the model.")
 
@@ -307,25 +302,21 @@ def align_and_update_state_dicts(model_state_dict, ckpt_state_dict, c2_conversio
             group = model_key_groups[key_model]
             memo |= set(group)
             shapes = [tuple(model_state_dict[k].shape) for k in group]
-            table.append(
-                (
-                    _longest_common_prefix([k[len(common_prefix) :] for k in group]) + "*",
-                    _group_str([original_keys[k] for k in group]),
-                    " ".join([str(x).replace(" ", "") for x in shapes]),
-                )
-            )
+            table.append((
+                _longest_common_prefix([k[len(common_prefix) :] for k in group]) + "*",
+                _group_str([original_keys[k] for k in group]),
+                " ".join([str(x).replace(" ", "") for x in shapes]),
+            ))
         else:
             key_checkpoint = original_keys[key_model]
             shape = str(tuple(model_state_dict[key_model].shape))
             table.append((key_model[len(common_prefix) :], key_checkpoint, shape))
-    table_str = tabulate(
-        table, tablefmt="pipe", headers=["Names in Model", "Names in Checkpoint", "Shapes"]
-    )
+    table_str = tabulate(table, tablefmt="pipe", headers=["Names in Model", "Names in Checkpoint", "Shapes"])
+    
     logger.info(
         "Following weights matched with "
         + (f"submodule {common_prefix[:-1]}" if common_prefix else "model")
-        + ":\n"
-        + table_str
+        + ":\n" + table_str
     )
 
     unmatched_ckpt_keys = [k for k in ckpt_keys if k not in set(matched_keys.keys())]
@@ -345,7 +336,6 @@ def _group_keys_by_module(keys: List[str], original_names: Dict[str, str]):
     Returns:
         dict[name -> all other names in the same group]
     """
-
     def _submodule_name(key):
         pos = key.rfind(".")
         if pos < 0:
@@ -405,3 +395,6 @@ def _group_str(names: List[str]) -> str:
     ret = ret.replace("bn_{beta,running_mean,running_var,gamma}", "bn_*")
     ret = ret.replace("bn_beta,bn_running_mean,bn_running_var,bn_gamma", "bn_*")
     return ret
+
+
+

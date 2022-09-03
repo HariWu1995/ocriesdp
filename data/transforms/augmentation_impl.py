@@ -5,17 +5,13 @@ Implement many useful :class:`Augmentation`.
 """
 import numpy as np
 import sys
-from fvcore.transforms.transform import (
-    BlendTransform,
-    CropTransform,
-    HFlipTransform,
-    NoOpTransform,
-    VFlipTransform,
-)
+from fvcore.transforms.transform import (BlendTransform, CropTransform, HFlipTransform,
+                                        NoOpTransform, VFlipTransform,)
 from PIL import Image
 import random
-from .augmentation import Augmentation, _transform_to_aug
-from .transform import ExtentTransform, ResizeTransform, RotationTransform
+from data.transforms.augmentation import Augmentation, _transform_to_aug
+from data.transforms.transform import ExtentTransform, ResizeTransform, RotationTransform
+
 
 __all__ = [
     "RandomApply",
@@ -38,7 +34,6 @@ class RandomApply(Augmentation):
     """
     Randomly apply an augmentation with a given probability.
     """
-
     def __init__(self, tfm_or_aug, prob=0.5):
         """
         Args:
@@ -72,7 +67,6 @@ class RandomFlip(Augmentation):
     """
     Flip the image horizontally or vertically with the given probability.
     """
-
     def __init__(self, prob=0.5, *, horizontal=True, vertical=False):
         """
         Args:
@@ -101,8 +95,9 @@ class RandomFlip(Augmentation):
 
 
 class Resize(Augmentation):
-    """ Resize image to a fixed target size"""
-
+    """ 
+    Resize image to a fixed target size
+    """
     def __init__(self, shape, interp=Image.BILINEAR):
         """
         Args:
@@ -115,9 +110,8 @@ class Resize(Augmentation):
         self._init(locals())
 
     def get_transform(self, image):
-        return ResizeTransform(
-            image.shape[0], image.shape[1], self.shape[0], self.shape[1], self.interp
-        )
+        return ResizeTransform(image.shape[0], image.shape[1], 
+                                self.shape[0], self.shape[1], self.interp)
 
 
 class ResizeShortestEdge(Augmentation):
@@ -125,10 +119,7 @@ class ResizeShortestEdge(Augmentation):
     Scale the shorter edge to the given size, with a limit of `max_size` on the longer edge.
     If `max_size` is reached, then downscale so that the longer edge does not exceed max_size.
     """
-
-    def __init__(
-        self, short_edge_length, max_size=sys.maxsize, sample_style="range", interp=Image.BILINEAR
-    ):
+    def __init__(self, short_edge_length, max_size=sys.maxsize, sample_style="range", interp=Image.BILINEAR):
         """
         Args:
             short_edge_length (list[int]): If ``sample_style=="range"``,
@@ -176,7 +167,6 @@ class RandomRotation(Augmentation):
     This method returns a copy of this image, rotated the given
     number of degrees counter clockwise around the given center.
     """
-
     def __init__(self, angle, expand=True, center=None, sample_style="range", interp=None):
         """
         Args:
@@ -229,7 +219,6 @@ class RandomCrop(Augmentation):
     """
     Randomly crop a rectangle region out of an image.
     """
-
     def __init__(self, crop_type: str, crop_size):
         """
         Args:
@@ -294,14 +283,8 @@ class RandomCrop_CategoryAreaConstraint(Augmentation):
     truth, which can cause unstability in training. The function attempts to find such a valid
     cropping window for at most 10 times.
     """
-
-    def __init__(
-        self,
-        crop_type: str,
-        crop_size,
-        single_category_max_area: float = 1.0,
-        ignored_category: int = None,
-    ):
+    def __init__(self, crop_type: str, crop_size, single_category_max_area: float = 1.0,
+                    ignored_category: int = None,):
         """
         Args:
             crop_type, crop_size: same as in :class:`RandomCrop`
@@ -341,7 +324,6 @@ class RandomExtent(Augmentation):
     in which case they will be set to zeros (i.e. black). The size of the output
     image will vary with the size of the random subrect.
     """
-
     def __init__(self, scale_range, shift_range):
         """
         Args:
@@ -389,7 +371,6 @@ class RandomContrast(Augmentation):
 
     See: https://pillow.readthedocs.io/en/3.0.x/reference/ImageEnhance.html
     """
-
     def __init__(self, intensity_min, intensity_max):
         """
         Args:
@@ -415,7 +396,6 @@ class RandomBrightness(Augmentation):
 
     See: https://pillow.readthedocs.io/en/3.0.x/reference/ImageEnhance.html
     """
-
     def __init__(self, intensity_min, intensity_max):
         """
         Args:
@@ -442,7 +422,6 @@ class RandomSaturation(Augmentation):
 
     See: https://pillow.readthedocs.io/en/3.0.x/reference/ImageEnhance.html
     """
-
     def __init__(self, intensity_min, intensity_max):
         """
         Args:
@@ -467,7 +446,6 @@ class RandomLighting(Augmentation):
     The degree of color jittering is randomly sampled via a normal distribution,
     with standard deviation given by the scale parameter.
     """
-
     def __init__(self, scale):
         """
         Args:
@@ -563,6 +541,7 @@ def adjust_crop(x0, y0, crop_size, instances, eps=1e-3):
 
 
 class RandomCropWithInstance(RandomCrop):
+
     def __init__(self, crop_type, crop_size, crop_instance=False):
         """
         Args:

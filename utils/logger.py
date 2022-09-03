@@ -10,12 +10,14 @@ import torch
 from tabulate import tabulate
 from termcolor import colored
 
-from detectron2.utils.file_io import PathManager
+from utils.io import PathManager
+
 
 __all__ = ["setup_logger", "log_first_n", "log_every_n", "log_every_n_seconds"]
 
 
 class _ColorfulFormatter(logging.Formatter):
+
     def __init__(self, *args, **kwargs):
         self._root_name = kwargs.pop("root_name") + "."
         self._abbrev_name = kwargs.pop("abbrev_name", "")
@@ -36,9 +38,7 @@ class _ColorfulFormatter(logging.Formatter):
 
 
 @functools.lru_cache()  # so that calling setup_logger multiple times won't add many handlers
-def setup_logger(
-    output=None, distributed_rank=0, *, color=True, name="detectron2", abbrev_name=None
-):
+def setup_logger(output=None, distributed_rank=0, *, color=True, name="detectron2", abbrev_name=None):
     """
     Initialize the detectron2 logger and set its verbosity level to "DEBUG".
 

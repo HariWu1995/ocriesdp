@@ -8,7 +8,6 @@ in training / testing. They will not work for everyone, but many users may find 
 The behavior of functions/classes in this file is subject to change,
 since they are meant to represent the "common default behavior" people need in their projects.
 """
-
 import argparse
 import logging
 import os
@@ -19,27 +18,17 @@ import torch
 from fvcore.nn.precise_bn import get_bn_modules
 from torch.nn.parallel import DistributedDataParallel
 
-import detectron2.data.transforms as T
-from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.data import (
-    MetadataCatalog,
-    build_detection_test_loader,
-    build_detection_train_loader,
-)
-from detectron2.evaluation import (
-    DatasetEvaluator,
-    inference_on_dataset,
-    print_csv_format,
-    verify_results,
-)
-from detectron2.modeling import build_model
-from detectron2.solver import build_lr_scheduler, build_optimizer
-from detectron2.utils import comm
-from detectron2.utils.collect_env import collect_env_info
-from detectron2.utils.env import TORCH_VERSION, seed_all_rng
-from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import setup_logger
+import data.transforms as T
+from checkpoint import DetectionCheckpointer
+from data import MetadataCatalog, build_detection_test_loader, build_detection_train_loader
+from evaluation import DatasetEvaluator, inference_on_dataset, print_csv_format, verify_results
+from models import build_model
+from solver import build_lr_scheduler, build_optimizer
+from utils.comm.multi_gpu import is_main_process, get_rank, get_world_size, get_local_rank, all_gather
+from utils.env import TORCH_VERSION, seed_all_rng, collect_env_info
+from utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
+from utils.io import PathManager
+from utils.logger import setup_logger
 
 from . import hooks
 from .train_loop import AMPTrainer, SimpleTrainer, TrainerBase
@@ -81,37 +70,22 @@ Run on multiple machines:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--config-file", default="", metavar="FILE", help="path to config file")
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Whether to attempt to resume from the checkpoint directory. "
-        "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",
-    )
+    parser.add_argument("--resume", action="store_true", help="Whether to attempt to resume from the checkpoint directory. "
+                                                              "See documentation of `DefaultTrainer.resume_or_load()` for what it means.",)
     parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
     parser.add_argument("--num-gpus", type=int, default=1, help="number of gpus *per machine*")
     parser.add_argument("--num-machines", type=int, default=1, help="total number of machines")
-    parser.add_argument(
-        "--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)"
-    )
+    parser.add_argument("--machine-rank", type=int, default=0, help="the rank of this machine (unique per machine)")
 
     # PyTorch still may leave orphan processes in multi-gpu training.
     # Therefore we use a deterministic way to obtain port,
     # so that users are aware of orphan processes by seeing the port occupied.
     port = 2 ** 15 + 2 ** 14 + hash(os.getuid() if sys.platform != "win32" else 1) % 2 ** 14
-    parser.add_argument(
-        "--dist-url",
-        default="tcp://127.0.0.1:{}".format(port),
-        help="initialization URL for pytorch distributed backend. See "
-        "https://pytorch.org/docs/stable/distributed.html for details.",
-    )
-    parser.add_argument(
-        "opts",
+    parser.add_argument("--dist-url", default="tcp://127.0.0.1:{}".format(port), help="initialization URL for pytorch distributed backend. "
+                                                                                      "See https://pytorch.org/docs/stable/distributed.html for details.",)
+    parser.add_argument("opts", default=None, nargs=argparse.REMAINDER, 
         help="Modify config options by adding 'KEY VALUE' pairs at the end of the command. "
-        "See config references at "
-        "https://detectron2.readthedocs.io/modules/config.html#config-references",
-        default=None,
-        nargs=argparse.REMAINDER,
-    )
+             "See config references at https://detectron2.readthedocs.io/modules/config.html#config-references",)
     return parser
 
 
@@ -128,26 +102,24 @@ def default_setup(cfg, args):
         args (argparse.NameSpace): the command line arguments to be logged
     """
     output_dir = cfg.OUTPUT_DIR
-    if comm.is_main_process() and output_dir:
+    if is_main_process() and output_dir:
         PathManager.mkdirs(output_dir)
 
-    rank = comm.get_rank()
+    rank = get_rank()
     setup_logger(output_dir, distributed_rank=rank, name="fvcore")
     logger = setup_logger(output_dir, distributed_rank=rank)
 
-    logger.info("Rank of current process: {}. World size: {}".format(rank, comm.get_world_size()))
+    logger.info("Rank of current process: {}. World size: {}".format(rank, get_world_size()))
     logger.info("Environment info:\n" + collect_env_info())
 
     logger.info("Command line arguments: " + str(args))
     if hasattr(args, "config_file") and args.config_file != "":
-        logger.info(
-            "Contents of args.config_file={}:\n{}".format(
-                args.config_file, PathManager.open(args.config_file, "r").read()
-            )
+        logger.info("Contents of args.config_file={}:\n{}".format(
+            args.config_file, PathManager.open(args.config_file, "r").read())
         )
 
     logger.info("Running with full config:\n{}".format(cfg))
-    if comm.is_main_process() and output_dir:
+    if is_main_process() and output_dir:
         # Note: some of our scripts may expect the existence of
         # config.yaml in output directory
         path = os.path.join(output_dir, "config.yaml")
@@ -210,7 +182,6 @@ class DefaultPredictor:
         inputs = cv2.imread("input.jpg")
         outputs = pred(inputs)
     """
-
     def __init__(self, cfg):
         self.cfg = cfg.clone()  # cfg can be modified by model
         self.model = build_model(self.cfg)
@@ -294,7 +265,6 @@ class DefaultTrainer(TrainerBase):
         checkpointer (DetectionCheckpointer):
         cfg (CfgNode):
     """
-
     def __init__(self, cfg):
         """
         Args:
@@ -304,7 +274,7 @@ class DefaultTrainer(TrainerBase):
         logger = logging.getLogger("detectron2")
         if not logger.isEnabledFor(logging.INFO):  # setup_logger is not called for d2
             setup_logger()
-        cfg = DefaultTrainer.auto_scale_workers(cfg, comm.get_world_size())
+        cfg = DefaultTrainer.auto_scale_workers(cfg, get_world_size())
 
         # Assume these objects must be constructed in this order.
         model = self.build_model(cfg)
@@ -312,13 +282,11 @@ class DefaultTrainer(TrainerBase):
         data_loader = self.build_train_loader(cfg)
 
         # For training, wrap with DDP. But don't need this for inference.
-        if comm.get_world_size() > 1:
-            model = DistributedDataParallel(
-                model, device_ids=[comm.get_local_rank()], broadcast_buffers=False,find_unused_parameters=True
-            )
-        self._trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(
-            model, data_loader, optimizer
-        )
+        if get_world_size() > 1:
+            model = DistributedDataParallel(model, device_ids=[get_local_rank()], 
+                                            broadcast_buffers=False, 
+                                            find_unused_parameters=True)
+        self._trainer = (AMPTrainer if cfg.SOLVER.AMP.ENABLED else SimpleTrainer)(model, data_loader, optimizer)
 
         self.scheduler = self.build_lr_scheduler(cfg, optimizer)
         # Assume no other objects need to be checkpointed.
@@ -360,7 +328,7 @@ class DefaultTrainer(TrainerBase):
             # machines may not have access to the checkpoint file
             if TORCH_VERSION >= (1, 7):
                 self.model._sync_params_and_buffers()
-            self.start_iter = comm.all_gather(self.start_iter)[0]
+            self.start_iter = all_gather(self.start_iter)[0]
 
     def build_hooks(self):
         """
@@ -393,7 +361,7 @@ class DefaultTrainer(TrainerBase):
         # be saved by checkpointer.
         # This is not always the best: if checkpointing has a different frequency,
         # some checkpoints may have more precise statistics than others.
-        if comm.is_main_process():
+        if is_main_process():
             ret.append(hooks.PeriodicCheckpointer(self.checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD))
 
         def test_and_save_results():
@@ -404,7 +372,7 @@ class DefaultTrainer(TrainerBase):
         # we can use the saved checkpoint to debug.
         ret.append(hooks.EvalHook(cfg.TEST.EVAL_PERIOD, test_and_save_results))
 
-        if comm.is_main_process():
+        if is_main_process():
             # Here the default print/log frequency of each writer is used.
             # run writers in the end, so that evaluation metrics are written
             ret.append(hooks.PeriodicWriter(self.build_writers(), period=20))
@@ -429,7 +397,7 @@ class DefaultTrainer(TrainerBase):
             OrderedDict of results, if evaluation is enabled. Otherwise None.
         """
         super().train(self.start_iter, self.max_iter)
-        if len(self.cfg.TEST.EXPECTED_RESULTS) and comm.is_main_process():
+        if len(self.cfg.TEST.EXPECTED_RESULTS) and is_main_process():
             assert hasattr(
                 self, "_last_eval_results"
             ), "No evaluation results obtained during training!"
@@ -503,13 +471,11 @@ class DefaultTrainer(TrainerBase):
 
         It is not implemented by default.
         """
-        raise NotImplementedError(
-            """
+        raise NotImplementedError("""
 If you want DefaultTrainer to automatically run evaluation,
 please implement `build_evaluator()` in subclasses (see train_net.py for example).
 Alternatively, you can call evaluation functions yourself (see Colab balloon tutorial for example).
-"""
-        )
+""")
 
     @classmethod
     def test(cls, cfg, model, evaluators=None):
@@ -529,7 +495,7 @@ Alternatively, you can call evaluation functions yourself (see Colab balloon tut
             evaluators = [evaluators]
         if evaluators is not None:
             assert len(cfg.DATASETS.TEST) == len(evaluators), "{} != {}".format(
-                len(cfg.DATASETS.TEST), len(evaluators)
+                    len(cfg.DATASETS.TEST), len(evaluators)
             )
 
         results = OrderedDict()
@@ -551,12 +517,9 @@ Alternatively, you can call evaluation functions yourself (see Colab balloon tut
                     continue
             results_i = inference_on_dataset(model, data_loader, evaluator)
             results[dataset_name] = results_i
-            if comm.is_main_process():
-                assert isinstance(
-                    results_i, dict
-                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
-                    results_i
-                )
+            if is_main_process():
+                assert isinstance(results_i, dict), \
+                    "Evaluator must return a dict on the main process. Got {} instead.".format(results_i)
                 logger.info("Evaluation results for {} in csv format:".format(dataset_name))
                 print_csv_format(results_i)
 
@@ -613,9 +576,7 @@ Alternatively, you can call evaluation functions yourself (see Colab balloon tut
         frozen = cfg.is_frozen()
         cfg.defrost()
 
-        assert (
-            cfg.SOLVER.IMS_PER_BATCH % old_world_size == 0
-        ), "Invalid REFERENCE_WORLD_SIZE in config!"
+        assert (cfg.SOLVER.IMS_PER_BATCH % old_world_size == 0), "Invalid REFERENCE_WORLD_SIZE in config!"
         scale = num_workers / old_world_size
         bs = cfg.SOLVER.IMS_PER_BATCH = int(round(cfg.SOLVER.IMS_PER_BATCH * scale))
         lr = cfg.SOLVER.BASE_LR = cfg.SOLVER.BASE_LR * scale

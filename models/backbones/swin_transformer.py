@@ -10,14 +10,13 @@ import torch.utils.checkpoint as checkpoint
 import numpy as np
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
-from detectron2.modeling.backbone.backbone import Backbone
-from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
-from detectron2.modeling.backbone.fpn import FPN, LastLevelMaxPool, LastLevelP6P7
-from detectron2.layers import ShapeSpec
+from models.backbones.base import Backbone
+from models.backbones.build import BACKBONE_REGISTRY
+from models.backbones.fpn import FPN, LastLevelMaxPool, LastLevelP6P7
+from models.layers.common import ShapeSpec
 
 
 class Mlp(nn.Module):
-    """ Multilayer perceptron."""
 
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
@@ -68,8 +67,10 @@ def window_reverse(windows, window_size, H, W):
 
 
 class WindowAttention(nn.Module):
-    """ Window based multi-head self attention (W-MSA) module with relative position bias.
+    """ 
+    Window-based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
+
     Args:
         dim (int): Number of input channels.
         window_size (tuple[int]): The height and width of the window.
@@ -79,7 +80,6 @@ class WindowAttention(nn.Module):
         attn_drop (float, optional): Dropout ratio of attention weight. Default: 0.0
         proj_drop (float, optional): Dropout ratio of output. Default: 0.0
     """
-
     def __init__(self, dim, window_size, num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
 
         super().__init__()
@@ -149,7 +149,9 @@ class WindowAttention(nn.Module):
 
 
 class SwinTransformerBlock(nn.Module):
-    """ Swin Transformer Block.
+    """ 
+    Swin Transformer Block.
+    
     Args:
         dim (int): Number of input channels.
         num_heads (int): Number of attention heads.
@@ -164,7 +166,6 @@ class SwinTransformerBlock(nn.Module):
         act_layer (nn.Module, optional): Activation layer. Default: nn.GELU
         norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
     """
-
     def __init__(self, dim, num_heads, window_size=7, shift_size=0,
                  mlp_ratio=4., qkv_bias=True, qk_scale=None, drop=0., attn_drop=0., drop_path=0.,
                  act_layer=nn.GELU, norm_layer=nn.LayerNorm):
@@ -190,7 +191,7 @@ class SwinTransformerBlock(nn.Module):
         self.W = None
 
     def forward(self, x, mask_matrix):
-        """ Forward function.
+        """ 
         Args:
             x: Input feature, tensor size (B, H*W, C).
             H, W: Spatial resolution of the input feature.
@@ -249,7 +250,9 @@ class SwinTransformerBlock(nn.Module):
 
 
 class PatchMerging(nn.Module):
-    """ Patch Merging Layer
+    """ 
+    Patch Merging Layer
+
     Args:
         dim (int): Number of input channels.
         norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
@@ -261,7 +264,7 @@ class PatchMerging(nn.Module):
         self.norm = norm_layer(4 * dim)
 
     def forward(self, x, H, W):
-        """ Forward function.
+        """ 
         Args:
             x: Input feature, tensor size (B, H*W, C).
             H, W: Spatial resolution of the input feature.
@@ -289,7 +292,9 @@ class PatchMerging(nn.Module):
         return x
 
 class BasicLayer(nn.Module):
-    """ A basic Swin Transformer layer for one stage.
+    """ 
+    A basic Swin Transformer layer for one stage.
+
     Args:
         dim (int): Number of feature channels
         depth (int): Depths of this stage.
@@ -391,7 +396,9 @@ class BasicLayer(nn.Module):
 
 
 class PatchEmbed(nn.Module):
-    """ Image to Patch Embedding
+    """ 
+    Image to Patch Embedding
+
     Args:
         patch_size (int): Patch token size. Default: 4.
         in_chans (int): Number of input image channels. Default: 3.
@@ -399,22 +406,21 @@ class PatchEmbed(nn.Module):
         norm_layer (nn.Module, optional): Normalization layer. Default: None
     """
 
-    def __init__(self, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
+    def __init__(self, patch_size=4, in_channels=3, embed_dim=96, norm_layer=None):
         super().__init__()
         patch_size = to_2tuple(patch_size)
         self.patch_size = patch_size
 
-        self.in_chans = in_chans
+        self.in_channels = in_channels
         self.embed_dim = embed_dim
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
             self.norm = None
 
-    def forward(self, x):
-        """Forward function."""
+    def forward(self, x: torch.Tensor):
         # padding
         _, _, H, W = x.size()
         if W % self.patch_size[1] != 0:
@@ -428,14 +434,15 @@ class PatchEmbed(nn.Module):
             x = x.flatten(2).transpose(1, 2)
             x = self.norm(x)
             x = x.transpose(1, 2).view(-1, self.embed_dim, Wh, Ww)
-
         return x
 
 
 class SwinTransformer(Backbone):
-    """ Swin Transformer backbone.
-        A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -
-          https://arxiv.org/pdf/2103.14030
+    """ 
+    Swin Transformer backbone.
+    A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -
+        https://arxiv.org/pdf/2103.14030
+
     Args:
         pretrain_img_size (int): Input image size for training the pretrained model,
             used in absolute postion embedding. Default 224.
@@ -459,7 +466,6 @@ class SwinTransformer(Backbone):
             -1 means not freezing any parameters.
         use_checkpoint (bool): Whether to use checkpointing to save memory. Default: False.
     """
-
     def __init__(self,
                  pretrain_img_size=224,
                  patch_size=4,
@@ -568,12 +574,11 @@ class SwinTransformer(Backbone):
                     param.requires_grad = False
 
     def init_weights(self, pretrained=None):
-        """Initialize the weights in backbone.
+        """
         Args:
             pretrained (str, optional): Path to pre-trained weights.
                 Defaults to None.
         """
-
         def _init_weights(m):
             if isinstance(m, nn.Linear):
                 trunc_normal_(m.weight, std=.02)
@@ -582,11 +587,9 @@ class SwinTransformer(Backbone):
             elif isinstance(m, nn.LayerNorm):
                 nn.init.constant_(m.bias, 0)
                 nn.init.constant_(m.weight, 1.0)
-
         self.apply(_init_weights)
 
     def forward(self, x):
-        """Forward function."""
         x = self.patch_embed(x)
 
         Wh, Ww = x.size(2), x.size(3)
@@ -612,7 +615,9 @@ class SwinTransformer(Backbone):
         return outs #{"stage%d" % (i+2,): out for i, out in enumerate(outs)} #tuple(outs)
 
     def train(self, mode=True):
-        """Convert the model into training mode while keep layers freezed."""
+        """
+        Convert the model into training mode while keep layers freezed.
+        """
         super(SwinTransformer, self).train(mode)
         self._freeze_stages()
 
@@ -677,6 +682,7 @@ def build_swint_fpn_backbone(cfg, input_shape: ShapeSpec):
     )
     return backbone
 
+
 class LastLevelP6(nn.Module):
     """
     This module is used in FCOS to generate extra layers
@@ -687,12 +693,15 @@ class LastLevelP6(nn.Module):
         self.num_levels = 1
         self.in_feature = in_features
         self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
+
+        from fvcore.nn.weight_init import c2_xavier_fill
         for module in [self.p6]:
-            weight_init.c2_xavier_fill(module)
+            c2_xavier_fill(module)
 
     def forward(self, x):
         p6 = self.p6(x)
         return [p6]
+
 
 @BACKBONE_REGISTRY.register()
 def build_retinanet_swint_fpn_backbone(cfg, input_shape: ShapeSpec):
@@ -714,6 +723,7 @@ def build_retinanet_swint_fpn_backbone(cfg, input_shape: ShapeSpec):
         top_block = LastLevelP6(in_channels_top, out_channels, "p5")
     elif top_levels == 0:
         top_block = None
+        
     backbone = FPN(
         bottom_up=bottom_up,
         in_features=in_features,

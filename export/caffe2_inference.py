@@ -20,7 +20,6 @@ class ProtobufModel(torch.nn.Module):
     It works just like nn.Module, but running caffe2 under the hood.
     Input/Output are tuple[tensor] that match the caffe2 net's external_input/output.
     """
-
     _ids = count(0)
 
     def __init__(self, predict_net, init_net):
@@ -50,7 +49,6 @@ class ProtobufModel(torch.nn.Module):
         Returns:
             list[str]: list of device for each external output
         """
-
         def _get_device_type(torch_tensor):
             assert torch_tensor.device.type in ["cpu", "cuda"]
             assert torch_tensor.device.index == 0
@@ -111,13 +109,10 @@ class ProtobufModel(torch.nn.Module):
         )
 
         outputs = []
-        for name, c2_output, device in zip(
-            self.net.Proto().external_output, c2_outputs, output_devices
-        ):
+        for name, c2_output, device in zip(self.net.Proto().external_output, c2_outputs, output_devices):
             if not isinstance(c2_output, np.ndarray):
-                raise RuntimeError(
-                    "Invalid output for blob {}, received: {}".format(name, c2_output)
-                )
+                raise RuntimeError(f"Invalid output for blob {name}, received: {c2_output}")
+
             outputs.append(torch.tensor(c2_output).to(device=device))
         return tuple(outputs)
 
@@ -127,7 +122,6 @@ class ProtobufDetectionModel(torch.nn.Module):
     A class works just like a pytorch meta arch in terms of inference, but running
     caffe2 model under the hood.
     """
-
     def __init__(self, predict_net, init_net, *, convert_outputs=None):
         """
         Args:
@@ -150,12 +144,13 @@ class ProtobufDetectionModel(torch.nn.Module):
 
     def _convert_inputs(self, batched_inputs):
         # currently all models convert inputs in the same way
-        return convert_batched_inputs_to_c2_format(
-            batched_inputs, self.size_divisibility, self.device
-        )
+        return convert_batched_inputs_to_c2_format(batched_inputs, self.size_divisibility, self.device)
 
     def forward(self, batched_inputs):
         c2_inputs = self._convert_inputs(batched_inputs)
         c2_results = self.protobuf_model(c2_inputs)
         c2_results = dict(zip(self.protobuf_model.net.Proto().external_output, c2_results))
         return self._convert_outputs(batched_inputs, c2_inputs, c2_results)
+
+
+

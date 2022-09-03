@@ -10,9 +10,9 @@ import torch
 from torch import nn
 
 # need some explicit imports due to https://github.com/pytorch/pytorch/issues/38964
-import detectron2  # noqa F401
-from detectron2.structures import Boxes, Instances
-from detectron2.utils.env import _import_file
+# import detectron2  # noqa F401
+from structures import Boxes, Instances
+from utils.env import _import_file
 
 _counter = 0
 
@@ -55,9 +55,9 @@ def patch_instances(fields):
     See more in `scripting_with_instances`.
     """
 
-    with tempfile.TemporaryDirectory(prefix="detectron2") as dir, tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", suffix=".py", dir=dir, delete=False
-    ) as f:
+    with tempfile.TemporaryDirectory(prefix="detectron2") as dir, \
+         tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", 
+                                     suffix=".py", dir=dir, delete=False) as f:
         try:
             # Objects that use Instances should not reuse previously-compiled
             # results in cache, because `Instances` could be a new class each time.
@@ -78,6 +78,7 @@ def patch_instances(fields):
 
             _add_instances_conversion_methods(new_instances)
             yield new_instances
+
         finally:
             try:
                 del Instances.__torch_script_class__
@@ -92,7 +93,6 @@ def _gen_instance_class(fields):
     Args:
         fields (dict[name: type])
     """
-
     class _FieldType:
         def __init__(self, name, type_):
             assert isinstance(name, str), f"Field name must be str, got {name}"
@@ -267,8 +267,7 @@ from torch import Tensor
 import typing
 from typing import *
 
-import detectron2
-from detectron2.structures import Boxes, Instances
+from structures import Boxes, Instances
 
 """
 
@@ -300,9 +299,9 @@ def patch_builtin_len(modules=()):
 
     with ExitStack() as stack:
         MODULES = [
-            "detectron2.modeling.roi_heads.fast_rcnn",
-            "detectron2.modeling.roi_heads.mask_head",
-            "detectron2.modeling.roi_heads.keypoint_head",
+            "models.roi_heads.fast_rcnn",
+            "models.roi_heads.mask_head",
+            "models.roi_heads.keypoint_head",
         ] + list(modules)
         ctxs = [stack.enter_context(mock.patch(mod + ".len")) for mod in MODULES]
         for m in ctxs:
@@ -318,7 +317,8 @@ def patch_nonscriptable_classes():
     # __prepare_scriptable__ can also be added to models for easier maintenance.
     # But it complicates the clean model code.
 
-    from detectron2.modeling.backbone import ResNet, FPN
+    from models.backbones.resnet import ResNet
+    from models.backbones.fpn import FPN
 
     # Due to https://github.com/pytorch/pytorch/issues/36061,
     # we change backbone to use ModuleList for scripting.
@@ -346,7 +346,7 @@ def patch_nonscriptable_classes():
 
     # Annotate some attributes to be constants for the purpose of scripting,
     # even though they are not constants in eager mode.
-    from detectron2.modeling.roi_heads import StandardROIHeads
+    from models.roi_heads import StandardROIHeads
 
     if hasattr(StandardROIHeads, "__annotations__"):
         # copy first to avoid editing annotations of base class

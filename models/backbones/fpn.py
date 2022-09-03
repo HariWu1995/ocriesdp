@@ -5,11 +5,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from detectron2.layers import Conv2d, ShapeSpec, get_norm
+from models.layers.common import ShapeSpec
+from models.layers.convolution.base import Conv2d
+from models.layers.normalization.batch_norm import get_norm
 
-from detectron2.modeling.backbone.backbone import Backbone
-from detectron2.modeling.backbone.resnet import build_resnet_backbone
-from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
+from models.backbones.base import Backbone
+from models.backbones.resnet import build_resnet_backbone
+from models.backbones.build import BACKBONE_REGISTRY
 
 
 __all__ = ["build_resnet_fpn_backbone", "build_retinanet_resnet_fpn_backbone", "FPN"]

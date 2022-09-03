@@ -15,14 +15,14 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
 
-import detectron2.utils.comm as comm
-from detectron2.config import CfgNode
-from detectron2.data import MetadataCatalog
-from detectron2.data.datasets.coco import convert_to_coco_json
-from detectron2.evaluation.fast_eval_api import COCOeval_opt
-from detectron2.structures import Boxes, BoxMode, pairwise_iou
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import create_small_table
+from config import CfgNode
+from data import MetadataCatalog
+from data.datasets.coco import convert_to_coco_json
+from evaluation.fast_eval_api import COCOeval_opt
+from structures import Boxes, BoxMode, pairwise_iou
+from utils.io import PathManager
+from utils.logger import create_small_table
+from utils.comm.multi_gpu import is_main_process, gather, synchronize
 
 from .evaluator import DatasetEvaluator
 
@@ -39,17 +39,8 @@ class COCOEvaluator(DatasetEvaluator):
     In addition to COCO, this evaluator is able to support any bounding box detection,
     instance segmentation, or keypoint detection dataset.
     """
-
-    def __init__(
-        self,
-        dataset_name,
-        tasks=None,
-        distributed=True,
-        output_dir=None,
-        *,
-        use_fast_impl=True,
-        kpt_oks_sigmas=(),
-    ):
+    def __init__(self, dataset_name, tasks=None, distributed=True, output_dir=None, *,
+                    use_fast_impl=True, kpt_oks_sigmas=(),):
         """
         Args:
             dataset_name (str): name of the dataset to be evaluated.
@@ -86,12 +77,10 @@ class COCOEvaluator(DatasetEvaluator):
         self._use_fast_impl = use_fast_impl
 
         if tasks is not None and isinstance(tasks, CfgNode):
-            kpt_oks_sigmas = (
-                tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
-            )
+            kpt_oks_sigmas = tasks.TEST.KEYPOINT_OKS_SIGMAS if not kpt_oks_sigmas else kpt_oks_sigmas
             self._logger.warn(
-                "COCO Evaluator instantiated using config, this is deprecated behavior."
-                " Please pass in explicit arguments instead."
+                "COCO Evaluator instantiated using config, this is deprecated behavior. "
+                "Please pass in explicit arguments instead."
             )
             self._tasks = None  # Infering it from predictions should be better
         else:
@@ -102,8 +91,8 @@ class COCOEvaluator(DatasetEvaluator):
         self._metadata = MetadataCatalog.get(dataset_name)
         if not hasattr(self._metadata, "json_file"):
             self._logger.info(
-                f"'{dataset_name}' is not registered by `register_coco_instances`."
-                " Therefore trying to convert it to COCO format ..."
+                f"'{dataset_name}' is not registered by `register_coco_instances`. "
+                "Therefore trying to convert it to COCO format ..."
             )
 
             cache_path = os.path.join(output_dir, f"{dataset_name}_coco_format.json")
@@ -149,11 +138,11 @@ class COCOEvaluator(DatasetEvaluator):
             img_ids: a list of image IDs to evaluate on. Default to None for the whole dataset
         """
         if self._distributed:
-            comm.synchronize()
-            predictions = comm.gather(self._predictions, dst=0)
+            synchronize()
+            predictions = gather(self._predictions, dst=0)
             predictions = list(itertools.chain(*predictions))
 
-            if not comm.is_main_process():
+            if not is_main_process():
                 return {}
         else:
             predictions = self._predictions
@@ -225,9 +214,7 @@ class COCOEvaluator(DatasetEvaluator):
             return
 
         self._logger.info(
-            "Evaluating predictions with {} COCO API...".format(
-                "unofficial" if self._use_fast_impl else "official"
-            )
+            "Evaluating predictions with {} COCO API...".format("unofficial" if self._use_fast_impl else "official")
         )
         for task in sorted(tasks):
             assert task in {"bbox", "segm", "keypoints"}, f"Got unknown task: {task}!"
@@ -301,11 +288,10 @@ class COCOEvaluator(DatasetEvaluator):
         Returns:
             a dict of {metric name: score}
         """
-
         metrics = {
-            "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
-            "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
-            "keypoints": ["AP", "AP50", "AP75", "APm", "APl"],
+                 "bbox": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+                 "segm": ["AP", "AP50", "AP75", "APs", "APm", "APl"],
+            "keypoints": ["AP", "AP50", "AP75",        "APm", "APl"],
         }[iou_type]
 
         if coco_eval is None:
@@ -315,7 +301,7 @@ class COCOEvaluator(DatasetEvaluator):
         # the standard metrics
         results = {
             metric: float(coco_eval.stats[idx] * 100 if coco_eval.stats[idx] >= 0 else "nan")
-            for idx, metric in enumerate(metrics)
+                                      for idx, metric in enumerate(metrics)
         }
         self._logger.info(
             "Evaluation results for {}: \n".format(iou_type) + create_small_table(results)
@@ -325,9 +311,11 @@ class COCOEvaluator(DatasetEvaluator):
 
         if class_names is None or len(class_names) <= 1:
             return results
+
         # Compute per-category AP
         # from https://github.com/facebookresearch/Detectron/blob/a6a835f5b8208c45d0dce217ce9bbda915f44df7/detectron/datasets/json_dataset_evaluator.py#L222-L252 # noqa
         precisions = coco_eval.eval["precision"]
+
         # precision has dims (iou, recall, cls, area range, max dets)
         assert len(class_names) == precisions.shape[2]
 
@@ -384,7 +372,7 @@ def instances_to_coco_json(instances, img_id):
         # since this evaluator stores outputs of the entire dataset
         rles = [
             mask_util.encode(np.array(mask[:, :, None], order="F", dtype="uint8"))[0]
-            for mask in instances.pred_masks
+                                  for mask in instances.pred_masks
         ]
         for rle in rles:
             # "counts" is an array encoded by mask_util as a byte-stream. Python3's
@@ -405,8 +393,10 @@ def instances_to_coco_json(instances, img_id):
             "bbox": boxes[k],
             "score": scores[k],
         }
+
         if has_mask:
             result["segmentation"] = rles[k]
+        
         if has_keypoints:
             # In COCO annotations,
             # keypoints coordinates are pixel indices.
@@ -430,21 +420,21 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     # Record max overlap value for each gt box
     # Return vector of overlap values
     areas = {
-        "all": 0,
-        "small": 1,
-        "medium": 2,
-        "large": 3,
-        "96-128": 4,
+            "all": 0,
+          "small": 1,
+         "medium": 2,
+          "large": 3,
+         "96-128": 4,
         "128-256": 5,
         "256-512": 6,
         "512-inf": 7,
     }
     area_ranges = [
-        [0 ** 2, 1e5 ** 2],  # all
-        [0 ** 2, 32 ** 2],  # small
-        [32 ** 2, 96 ** 2],  # medium
-        [96 ** 2, 1e5 ** 2],  # large
-        [96 ** 2, 128 ** 2],  # 96-128
+        [  0 ** 2, 1e5 ** 2],  # all
+        [  0 ** 2,  32 ** 2],  # small
+        [ 32 ** 2,  96 ** 2],  # medium
+        [ 96 ** 2, 1e5 ** 2],  # large
+        [ 96 ** 2, 128 ** 2],  # 96-128
         [128 ** 2, 256 ** 2],  # 128-256
         [256 ** 2, 512 ** 2],  # 256-512
         [512 ** 2, 1e5 ** 2],
@@ -509,18 +499,19 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
 
         # append recorded iou coverage level
         gt_overlaps.append(_gt_overlaps)
-    gt_overlaps = (
-        torch.cat(gt_overlaps, dim=0) if len(gt_overlaps) else torch.zeros(0, dtype=torch.float32)
-    )
+    gt_overlaps = torch.cat(gt_overlaps, dim=0) \
+                        if len(gt_overlaps) > 0 else torch.zeros(0, dtype=torch.float32)
     gt_overlaps, _ = torch.sort(gt_overlaps)
 
     if thresholds is None:
         step = 0.05
         thresholds = torch.arange(0.5, 0.95 + 1e-5, step, dtype=torch.float32)
     recalls = torch.zeros_like(thresholds)
+
     # compute recall for each iou threshold
     for i, t in enumerate(thresholds):
         recalls[i] = (gt_overlaps >= t).float().sum() / float(num_pos)
+    
     # ar = 2 * np.trapz(recalls, thresholds)
     ar = recalls.mean()
     return {
@@ -532,9 +523,8 @@ def _evaluate_box_proposals(dataset_predictions, coco_api, thresholds=None, area
     }
 
 
-def _evaluate_predictions_on_coco(
-    coco_gt, coco_results, iou_type, kpt_oks_sigmas=None, use_fast_impl=True, img_ids=None
-):
+def _evaluate_predictions_on_coco(coco_gt, coco_results, iou_type, kpt_oks_sigmas=None, 
+                                    use_fast_impl=True, img_ids=None):
     """
     Evaluate the coco results using COCOEval API.
     """
@@ -559,6 +549,7 @@ def _evaluate_predictions_on_coco(
         if kpt_oks_sigmas:
             assert hasattr(coco_eval.params, "kpt_oks_sigmas"), "pycocotools is too old!"
             coco_eval.params.kpt_oks_sigmas = np.array(kpt_oks_sigmas)
+
         # COCOAPI requires every detection and every gt to have keypoints, so
         # we just take the first entry from both
         num_keypoints_dt = len(coco_results[0]["keypoints"]) // 3

@@ -3,13 +3,13 @@ import logging
 import os
 from fvcore.common.timer import Timer
 
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.structures import BoxMode
-from detectron2.utils.file_io import PathManager
+from data import DatasetCatalog, MetadataCatalog
+from utils.io import PathManager
+from structures import BoxMode
 
 from .builtin_meta import _get_coco_instances_meta
-from .lvis_v0_5_categories import LVIS_CATEGORIES as LVIS_V0_5_CATEGORIES
 from .lvis_v1_categories import LVIS_CATEGORIES as LVIS_V1_CATEGORIES
+from .lvis_v0_5_categories import LVIS_CATEGORIES as LVIS_V0_5_CATEGORIES
 
 """
 This file contains functions to parse LVIS-format annotations into dicts in the
@@ -207,10 +207,10 @@ if __name__ == "__main__":
     """
     import sys
     import numpy as np
-    from detectron2.utils.logger import setup_logger
     from PIL import Image
-    import detectron2.data.datasets  # noqa # add pre-defined metadata
-    from detectron2.utils.visualizer import Visualizer
+    from utils.logger import setup_logger
+    import data.datasets  # noqa # add pre-defined metadata
+    from utils.visualizer import Visualizer
 
     logger = setup_logger(name=__name__)
     meta = MetadataCatalog.get(sys.argv[3])

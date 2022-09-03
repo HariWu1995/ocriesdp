@@ -6,12 +6,13 @@ import torch
 from caffe2.proto import caffe2_pb2
 from torch import nn
 
-from detectron2.config import CfgNode
-from detectron2.utils.file_io import PathManager
+from config import CfgNode
+from utils.io import PathManager
 
 from .caffe2_inference import ProtobufDetectionModel
 from .caffe2_modeling import META_ARCH_CAFFE2_EXPORT_TYPE_MAP, convert_batched_inputs_to_c2_format
 from .shared import get_pb_arg_vali, get_pb_arg_vals, save_graph
+
 
 __all__ = [
     "add_export_config",
@@ -64,7 +65,6 @@ class Caffe2Tracer:
     The class currently only supports models using builtin meta architectures.
     Batch inference is not supported, and contributions are welcome.
     """
-
     def __init__(self, cfg: CfgNode, model: nn.Module, inputs):
         """
         Args:
@@ -100,9 +100,7 @@ class Caffe2Tracer:
         """
         from .caffe2_export import export_caffe2_detection_model
 
-        predict_net, init_net = export_caffe2_detection_model(
-            self.traceable_model, self.traceable_inputs
-        )
+        predict_net, init_net = export_caffe2_detection_model(self.traceable_model, self.traceable_inputs)
         return Caffe2Model(predict_net, init_net)
 
     def export_onnx(self):
@@ -149,7 +147,6 @@ class Caffe2Model(nn.Module):
         outputs = c2_model(inputs)
         orig_outputs = torch_model(inputs)
     """
-
     def __init__(self, predict_net, init_net):
         super().__init__()
         self.eval()  # always in eval mode

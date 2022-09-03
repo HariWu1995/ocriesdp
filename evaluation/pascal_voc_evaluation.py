@@ -10,9 +10,9 @@ from collections import OrderedDict, defaultdict
 from functools import lru_cache
 import torch
 
-from detectron2.data import MetadataCatalog
-from detectron2.utils import comm
-from detectron2.utils.file_io import PathManager
+from data import MetadataCatalog
+from utils.io import PathManager
+from utils.comm.multi_gpu import gather, is_main_process
 
 from .evaluator import DatasetEvaluator
 
@@ -37,9 +37,7 @@ class PascalVOCDetectionEvaluator(DatasetEvaluator):
         meta = MetadataCatalog.get(dataset_name)
 
         # Too many tiny files, download all to local for speed.
-        annotation_dir_local = PathManager.get_local_path(
-            os.path.join(meta.dirname, "Annotations/")
-        )
+        annotation_dir_local = PathManager.get_local_path(os.path.join(meta.dirname, "Annotations/"))
         self._anno_file_template = os.path.join(annotation_dir_local, "{}.xml")
         self._image_set_path = os.path.join(meta.dirname, "ImageSets", "Main", meta.split + ".txt")
         self._class_names = meta.thing_classes
@@ -63,17 +61,15 @@ class PascalVOCDetectionEvaluator(DatasetEvaluator):
                 # The inverse of data loading logic in `datasets/pascal_voc.py`
                 xmin += 1
                 ymin += 1
-                self._predictions[cls].append(
-                    f"{image_id} {score:.3f} {xmin:.1f} {ymin:.1f} {xmax:.1f} {ymax:.1f}"
-                )
+                self._predictions[cls].append(f"{image_id} {score:.3f} {xmin:.1f} {ymin:.1f} {xmax:.1f} {ymax:.1f}")
 
     def evaluate(self):
         """
         Returns:
             dict: has a key "segm", whose value is a dict of "AP", "AP50", and "AP75".
         """
-        all_predictions = comm.gather(self._predictions, dst=0)
-        if not comm.is_main_process():
+        all_predictions = gather(self._predictions, dst=0)
+        if not is_main_process():
             return
         predictions = defaultdict(list)
         for predictions_per_rank in all_predictions:
@@ -82,10 +78,8 @@ class PascalVOCDetectionEvaluator(DatasetEvaluator):
         del all_predictions
 
         self._logger.info(
-            "Evaluating {} using {} metric. "
-            "Note that results do not use the official Matlab API.".format(
-                self._dataset_name, 2007 if self._is_2007 else 2012
-            )
+            f"Evaluating {self._dataset_name} using {2007 if self._is_2007 else 2012} metric. "
+            f"Note that results do not use the official Matlab API."
         )
 
         with tempfile.TemporaryDirectory(prefix="pascal_voc_eval_") as dirname:
@@ -111,7 +105,11 @@ class PascalVOCDetectionEvaluator(DatasetEvaluator):
 
         ret = OrderedDict()
         mAP = {iou: np.mean(x) for iou, x in aps.items()}
-        ret["bbox"] = {"AP": np.mean(list(mAP.values())), "AP50": mAP[50], "AP75": mAP[75]}
+        ret["bbox"] = {
+            "AP": np.mean(list(mAP.values())), 
+            "AP50": mAP[50], 
+            "AP75": mAP[75],
+        }
         return ret
 
 
@@ -130,9 +128,12 @@ class PascalVOCDetectionEvaluator(DatasetEvaluator):
 
 @lru_cache(maxsize=None)
 def parse_rec(filename):
-    """Parse a PASCAL VOC xml file."""
+    """
+    Parse a PASCAL VOC xml file.
+    """
     with PathManager.open(filename) as f:
         tree = ET.parse(f)
+
     objects = []
     for obj in tree.findall("object"):
         obj_struct = {}
@@ -153,8 +154,9 @@ def parse_rec(filename):
 
 
 def voc_ap(rec, prec, use_07_metric=False):
-    """Compute VOC AP given precision and recall. If use_07_metric is true, uses
-    the VOC 07 11-point method (default:False).
+    """
+    Compute VOC AP given precision and recall. 
+    If use_07_metric is true, uses the VOC 07 11-point method (default:False).
     """
     if use_07_metric:
         # 11 point metric
@@ -185,13 +187,7 @@ def voc_ap(rec, prec, use_07_metric=False):
 
 
 def voc_eval(detpath, annopath, imagesetfile, classname, ovthresh=0.5, use_07_metric=False):
-    """rec, prec, ap = voc_eval(detpath,
-                                annopath,
-                                imagesetfile,
-                                classname,
-                                [ovthresh],
-                                [use_07_metric])
-
+    """
     Top level function that does the PASCAL VOC evaluation.
 
     detpath: Path to detections
@@ -203,6 +199,14 @@ def voc_eval(detpath, annopath, imagesetfile, classname, ovthresh=0.5, use_07_me
     [ovthresh]: Overlap threshold (default = 0.5)
     [use_07_metric]: Whether to use VOC07's 11 point AP computation
         (default False)
+
+    Example:
+    rec, prec, ap = voc_eval(detpath,
+                            annopath,
+                            imagesetfile,
+                            classname,
+                            [ovthresh],
+                            [use_07_metric])
     """
     # assumes detections are in detpath.format(classname)
     # assumes annotations are in annopath.format(imagename)
@@ -269,9 +273,8 @@ def voc_eval(detpath, annopath, imagesetfile, classname, ovthresh=0.5, use_07_me
 
             # union
             uni = (
-                (bb[2] - bb[0] + 1.0) * (bb[3] - bb[1] + 1.0)
-                + (BBGT[:, 2] - BBGT[:, 0] + 1.0) * (BBGT[:, 3] - BBGT[:, 1] + 1.0)
-                - inters
+                (  bb[   2] -   bb[   0] + 1.0) * (  bb[   3] -   bb[   1] + 1.0) + 
+                (BBGT[:, 2] - BBGT[:, 0] + 1.0) * (BBGT[:, 3] - BBGT[:, 1] + 1.0) - inters
             )
 
             overlaps = inters / uni

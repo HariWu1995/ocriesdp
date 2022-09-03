@@ -5,10 +5,11 @@ import numpy as np
 from typing import List, Optional, Union
 import torch
 
-from detectron2.config import configurable
+from config.config import configurable
 
-from . import detection_utils as utils
-from . import transforms as T
+from data import detection_utils as utils
+from data import transforms as T
+
 
 """
 This file contains the default mapping that's applied to "dataset dicts".
@@ -35,19 +36,10 @@ class DatasetMapper:
     """
 
     @configurable
-    def __init__(
-        self,
-        is_train: bool,
-        *,
-        augmentations: List[Union[T.Augmentation, T.Transform]],
-        image_format: str,
-        use_instance_mask: bool = False,
-        use_keypoint: bool = False,
-        instance_mask_format: str = "polygon",
-        keypoint_hflip_indices: Optional[np.ndarray] = None,
-        precomputed_proposal_topk: Optional[int] = None,
-        recompute_boxes: bool = False,
-    ):
+    def __init__(self, is_train: bool, *, augmentations: List[Union[T.Augmentation, T.Transform]],
+                    image_format: str, use_instance_mask: bool = False, instance_mask_format: str = "polygon",
+                                        use_keypoint: bool = False, keypoint_hflip_indices: Optional[np.ndarray] = None,
+                            precomputed_proposal_topk: Optional[int] = None, recompute_boxes: bool = False,):
         """
         NOTE: this interface is experimental.
 
@@ -67,6 +59,7 @@ class DatasetMapper:
         """
         if recompute_boxes:
             assert use_instance_mask, "recompute_boxes requires instance masks"
+            
         # fmt: off
         self.is_train               = is_train
         self.augmentations          = T.AugmentationList(augmentations)

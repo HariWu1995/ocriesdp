@@ -11,20 +11,13 @@ import pycocotools.mask as mask_util
 import torch
 from PIL import Image
 
-from detectron2.structures import (
-    BitMasks,
-    Boxes,
-    BoxMode,
-    Instances,
-    Keypoints,
-    PolygonMasks,
-    RotatedBoxes,
-    polygons_to_bitmask,
-)
-from detectron2.utils.file_io import PathManager
+from structures import (BitMasks, Boxes, BoxMode, Instances, Keypoints, PolygonMasks, RotatedBoxes,
+                        polygons_to_bitmask,)
+from utils.io import PathManager
 
-from . import transforms as T
-from .catalog import MetadataCatalog
+from data import transforms as T
+from data.catalog import MetadataCatalog
+
 
 __all__ = [
     "SizeMismatchError",
@@ -120,13 +113,13 @@ def _apply_exif_orientation(image):
     Applies the exif orientation correctly.
 
     This code exists per the bug:
-      https://github.com/python-pillow/Pillow/issues/3973
+        https://github.com/python-pillow/Pillow/issues/3973
     with the function `ImageOps.exif_transpose`. The Pillow source raises errors with
     various methods, especially `tobytes`
 
     Function based on:
-      https://github.com/wkentaro/labelme/blob/v4.5.4/labelme/utils/image.py#L59
-      https://github.com/python-pillow/Pillow/blob/7.1.2/src/PIL/ImageOps.py#L527
+        https://github.com/wkentaro/labelme/blob/v4.5.4/labelme/utils/image.py#L59
+        https://github.com/python-pillow/Pillow/blob/7.1.2/src/PIL/ImageOps.py#L527
 
     Args:
         image (PIL.Image): a PIL image
@@ -216,12 +209,13 @@ def transform_proposals(dataset_dict, image_shape, transforms, *, proposal_topk,
 
     Args:
         dataset_dict (dict): a dict read from the dataset, possibly
-            contains fields "proposal_boxes", "proposal_objectness_logits", "proposal_bbox_mode"
+                                contains fields "proposal_boxes", 
+                                                "proposal_objectness_logits", 
+                                                "proposal_bbox_mode"
         image_shape (tuple): height, width
         transforms (TransformList):
         proposal_topk (int): only keep top-K scoring proposals
-        min_box_size (int): proposals with either side smaller than this
-            threshold are removed
+        min_box_size (int): proposals with either side smaller than this threshold are removed
 
     The input dict is modified in-place, with abovementioned keys removed. A new
     key "proposals" will be added. Its value is an `Instances`
@@ -231,16 +225,12 @@ def transform_proposals(dataset_dict, image_shape, transforms, *, proposal_topk,
     if "proposal_boxes" in dataset_dict:
         # Transform proposal boxes
         boxes = transforms.apply_box(
-            BoxMode.convert(
-                dataset_dict.pop("proposal_boxes"),
-                dataset_dict.pop("proposal_bbox_mode"),
-                BoxMode.XYXY_ABS,
-            )
+            BoxMode.convert(dataset_dict.pop("proposal_boxes"),
+                            dataset_dict.pop("proposal_bbox_mode"),
+                            BoxMode.XYXY_ABS,)
         )
         boxes = Boxes(boxes)
-        objectness_logits = torch.as_tensor(
-            dataset_dict.pop("proposal_objectness_logits").astype("float32")
-        )
+        objectness_logits = torch.as_tensor(dataset_dict.pop("proposal_objectness_logits").astype("float32"))
 
         boxes.clip(image_shape)
         keep = boxes.nonempty(threshold=min_box_size)
@@ -253,9 +243,7 @@ def transform_proposals(dataset_dict, image_shape, transforms, *, proposal_topk,
         dataset_dict["proposals"] = proposals
 
 
-def transform_instance_annotations(
-    annotation, transforms, image_size, *, keypoint_hflip_indices=None
-):
+def transform_instance_annotations(annotation, transforms, image_size, *, keypoint_hflip_indices=None):
     """
     Apply transforms to box, segmentation and keypoints annotations of a single instance.
 
@@ -302,9 +290,8 @@ def transform_instance_annotations(
             annotation["segmentation"] = mask
         else:
             raise ValueError(
-                "Cannot transform segmentation of type '{}'!"
-                "Supported types are: polygons as list[list[float] or ndarray],"
-                " COCO-style RLE as a dict.".format(type(segm))
+                f"Cannot transform segmentation of type '{type(segm)}'!"
+                f"Supported types are: polygons as list[list[float] or ndarray], COCO-style RLE as a dict."
             )
     if "keypoints" in annotation:
         keypoints = transform_keypoint_annotations(
@@ -393,9 +380,8 @@ def annotations_to_instances(annos, image_size, mask_format="polygon"):
                 masks = PolygonMasks(segms)
                 #masks_feat = PolygonMasks(segms_feat)
             except ValueError as e:
-                raise ValueError(
-                    "Failed to use mask_format=='polygon' from the given annotations!"
-                ) from e
+                raise ValueError("Failed to use mask_format=='polygon' from the given annotations!") from e
+
         else:
             assert mask_format == "bitmask", mask_format
             masks = []
@@ -407,24 +393,23 @@ def annotations_to_instances(annos, image_size, mask_format="polygon"):
                     # COCO RLE
                     masks.append(mask_util.decode(segm))
                 elif isinstance(segm, np.ndarray):
-                    assert segm.ndim == 2, "Expect segmentation of 2 dimensions, got {}.".format(
-                        segm.ndim
-                    )
+                    assert segm.ndim == 2, f"Expect segmentation of 2 dimensions, got {segm.ndim}."
                     # mask array
                     masks.append(segm)
                 else:
                     raise ValueError(
-                        "Cannot convert segmentation of type '{}' to BitMasks!"
-                        "Supported types are: polygons as list[list[float] or ndarray],"
-                        " COCO-style RLE as a dict, or a binary segmentation mask "
-                        " in a 2D numpy array of shape HxW.".format(type(segm))
+                        f"Cannot convert segmentation of type '{type(segm)}' to BitMasks!"
+                        f"Supported types are: polygons as list[list[float] or ndarray],"
+                        f" COCO-style RLE as a dict, or a binary segmentation mask "
+                        f" in a 2D numpy array of shape HxW."
                     )
             # torch.from_numpy does not support array with negative stride.
             masks = BitMasks(
                 torch.stack([torch.from_numpy(np.ascontiguousarray(x)) for x in masks])
             )
         target.gt_masks = masks
-        #target.gt_masks_feat = masks_feat
+        # target.gt_masks_feat = masks_feat
+
     if len(annos) and "keypoints" in annos[0]:
         kpts = [obj.get("keypoints", []) for obj in annos]
         target.gt_keypoints = Keypoints(kpts)
@@ -499,7 +484,6 @@ def create_keypoint_hflip_indices(dataset_names):
         ndarray[int]: a vector of size=#keypoints, storing the
         horizontally-flipped keypoint indices.
     """
-
     check_metadata_consistency("keypoint_names", dataset_names)
     check_metadata_consistency("keypoint_flip_map", dataset_names)
 
@@ -527,12 +511,10 @@ def gen_crop_transform_with_instance(crop_size, image_size, instance):
     crop_size = np.asarray(crop_size, dtype=np.int32)
     bbox = BoxMode.convert(instance["bbox"], instance["bbox_mode"], BoxMode.XYXY_ABS)
     center_yx = (bbox[1] + bbox[3]) * 0.5, (bbox[0] + bbox[2]) * 0.5
-    assert (
-        image_size[0] >= center_yx[0] and image_size[1] >= center_yx[1]
-    ), "The annotation bounding box is outside of the image!"
-    assert (
-        image_size[0] >= crop_size[0] and image_size[1] >= crop_size[1]
-    ), "Crop size is larger than image size!"
+    assert (image_size[0] >= center_yx[0]) and (image_size[1] >= center_yx[1]), \
+        "The annotation bounding box is outside of the image!"
+    assert (image_size[0] >= crop_size[0]) and (image_size[1] >= crop_size[1]), \
+        "Crop size is larger than image size!"
 
     min_yx = np.maximum(np.floor(center_yx).astype(np.int32) - crop_size, 0)
     max_yx = np.maximum(np.asarray(image_size, dtype=np.int32) - crop_size, 0)
@@ -561,15 +543,9 @@ def check_metadata_consistency(key, dataset_names):
     entries_per_dataset = [getattr(MetadataCatalog.get(d), key) for d in dataset_names]
     for idx, entry in enumerate(entries_per_dataset):
         if entry != entries_per_dataset[0]:
-            logger.error(
-                "Metadata '{}' for dataset '{}' is '{}'".format(key, dataset_names[idx], str(entry))
-            )
-            logger.error(
-                "Metadata '{}' for dataset '{}' is '{}'".format(
-                    key, dataset_names[0], str(entries_per_dataset[0])
-                )
-            )
-            raise ValueError("Datasets have different metadata '{}'!".format(key))
+            logger.error(f"Metadata '{key}' for dataset '{dataset_names[idx]}' is '{str(entry)}'")
+            logger.error(f"Metadata '{key}' for dataset '{dataset_names[0]}' is '{str(entries_per_dataset[0])}'")
+            raise ValueError(f"Datasets have different metadata '{key}'!")
 
 
 def build_augmentation(cfg, is_train):
@@ -591,10 +567,8 @@ def build_augmentation(cfg, is_train):
     augmentation = [T.ResizeShortestEdge(min_size, max_size, sample_style)]
     if is_train and cfg.INPUT.RANDOM_FLIP != "none":
         augmentation.append(
-            T.RandomFlip(
-                horizontal=cfg.INPUT.RANDOM_FLIP == "horizontal",
-                vertical=cfg.INPUT.RANDOM_FLIP == "vertical",
-            )
+            T.RandomFlip(horizontal=cfg.INPUT.RANDOM_FLIP == "horizontal",
+                           vertical=cfg.INPUT.RANDOM_FLIP ==   "vertical",)
         )
     return augmentation
 

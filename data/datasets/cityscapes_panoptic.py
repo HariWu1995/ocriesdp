@@ -3,9 +3,9 @@ import json
 import logging
 import os
 
-from detectron2.data import DatasetCatalog, MetadataCatalog
-from detectron2.data.datasets.builtin_meta import CITYSCAPES_CATEGORIES
-from detectron2.utils.file_io import PathManager
+from utils.io import PathManager
+from data import DatasetCatalog, MetadataCatalog
+from data.datasets.builtin_meta import CITYSCAPES_CATEGORIES
 
 """
 This file contains functions to register the Cityscapes panoptic dataset to the DatasetCatalog.
@@ -67,18 +67,13 @@ def load_cityscapes_panoptic(image_dir, gt_dir, gt_json, meta):
 
     def _convert_category_id(segment_info, meta):
         if segment_info["category_id"] in meta["thing_dataset_id_to_contiguous_id"]:
-            segment_info["category_id"] = meta["thing_dataset_id_to_contiguous_id"][
-                segment_info["category_id"]
-            ]
+            segment_info["category_id"] = meta["thing_dataset_id_to_contiguous_id"][segment_info["category_id"]]
         else:
-            segment_info["category_id"] = meta["stuff_dataset_id_to_contiguous_id"][
-                segment_info["category_id"]
-            ]
+            segment_info["category_id"] = meta["stuff_dataset_id_to_contiguous_id"][segment_info["category_id"]]
         return segment_info
 
-    assert os.path.exists(
-        gt_json
-    ), "Please run `python cityscapesscripts/preparation/createPanopticImgs.py` to generate label files."  # noqa
+    assert os.path.exists(gt_json), \
+        "Please run `python cityscapesscripts/preparation/createPanopticImgs.py` to generate label files."  # noqa
     with open(gt_json) as f:
         json_info = json.load(f)
     files = get_cityscapes_panoptic_files(image_dir, gt_dir, json_info)
@@ -91,21 +86,17 @@ def load_cityscapes_panoptic(image_dir, gt_dir, gt_json, meta):
         ret.append(
             {
                 "file_name": image_file,
-                "image_id": "_".join(
-                    os.path.splitext(os.path.basename(image_file))[0].split("_")[:3]
-                ),
+                "image_id": "_".join(os.path.splitext(os.path.basename(image_file))[0].split("_")[:3]),
                 "sem_seg_file_name": sem_label_file,
                 "pan_seg_file_name": label_file,
                 "segments_info": segments_info,
             }
         )
     assert len(ret), f"No images found in {image_dir}!"
-    assert PathManager.isfile(
-        ret[0]["sem_seg_file_name"]
-    ), "Please generate labelTrainIds.png with cityscapesscripts/preparation/createTrainIdLabelImgs.py"  # noqa
-    assert PathManager.isfile(
-        ret[0]["pan_seg_file_name"]
-    ), "Please generate panoptic annotation with python cityscapesscripts/preparation/createPanopticImgs.py"  # noqa
+    assert PathManager.isfile(ret[0]["sem_seg_file_name"]), \
+        "Please generate labelTrainIds.png with cityscapesscripts/preparation/createTrainIdLabelImgs.py"  # noqa
+    assert PathManager.isfile(ret[0]["pan_seg_file_name"]), \
+        "Please generate panoptic annotation with python cityscapesscripts/preparation/createPanopticImgs.py"  # noqa
     return ret
 
 
@@ -175,13 +166,10 @@ def register_all_cityscapes_panoptic(root):
         DatasetCatalog.register(
             key, lambda x=image_dir, y=gt_dir, z=gt_json: load_cityscapes_panoptic(x, y, z, meta)
         )
-        MetadataCatalog.get(key).set(
-            panoptic_root=gt_dir,
-            image_root=image_dir,
-            panoptic_json=gt_json,
-            gt_dir=gt_dir.replace("cityscapes_panoptic_", ""),
-            evaluator_type="cityscapes_panoptic_seg",
-            ignore_label=255,
-            label_divisor=1000,
-            **meta,
-        )
+        MetadataCatalog.get(key).set(panoptic_root=gt_dir,
+                                     panoptic_json=gt_json,
+                                            gt_dir=gt_dir.replace("cityscapes_panoptic_", ""),
+                                     image_root=image_dir,
+                                     evaluator_type="cityscapes_panoptic_seg",
+                                     ignore_label=255,
+                                     label_divisor=1000, **meta,)

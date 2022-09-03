@@ -80,14 +80,12 @@ def _op_stats(net_def):
     return "\n".join("{:>4}x {}".format(count, name) for name, count in type_count_list)
 
 
-def _assign_device_option(
-    predict_net: caffe2_pb2.NetDef, init_net: caffe2_pb2.NetDef, tensor_inputs: List[torch.Tensor]
-):
+def _assign_device_option(predict_net: caffe2_pb2.NetDef, 
+                             init_net: caffe2_pb2.NetDef, tensor_inputs: List[torch.Tensor]):
     """
     ONNX exported network doesn't have concept of device, assign necessary
     device option for each op in order to make it runable on GPU runtime.
     """
-
     def _get_device_type(torch_tensor):
         assert torch_tensor.device.type in ["cpu", "cuda"]
         assert torch_tensor.device.index == 0
@@ -140,8 +138,8 @@ def export_caffe2_detection_model(model: torch.nn.Module, tensor_inputs: List[to
 
     # Export via ONNX
     logger.info(
-        "Exporting a {} model via ONNX ...".format(type(model).__name__)
-        + " Some warnings from ONNX are expected and are usually not to worry about."
+        "Exporting a {} model via ONNX ... ".format(type(model).__name__) + 
+        "Some warnings from ONNX are expected and are usually not to worry about."
     )
     onnx_model = export_onnx_model(model, (tensor_inputs,))
     # Convert ONNX model to Caffe2 protobuf

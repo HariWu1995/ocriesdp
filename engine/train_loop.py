@@ -9,9 +9,10 @@ from typing import Dict, List, Optional
 import torch
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
-import detectron2.utils.comm as comm
-from detectron2.utils.events import EventStorage, get_event_storage
-from detectron2.utils.logger import _log_api_usage
+from utils.comm.multi_gpu import gather, is_main_process
+from utils.events import EventStorage, get_event_storage
+from utils.logger import _log_api_usage
+
 
 __all__ = ["HookBase", "TrainerBase", "SimpleTrainer", "AMPTrainer"]
 
@@ -50,7 +51,6 @@ class HookBase:
         trainer (TrainerBase): A weak reference to the trainer object. Set by the trainer
             when the hook is registered.
     """
-
     def before_train(self):
         """
         Called before the first iteration.
@@ -94,7 +94,6 @@ class TrainerBase:
 
         storage(EventStorage): An EventStorage that's opened during the course of training.
     """
-
     def __init__(self) -> None:
         self._hooks: List[HookBase] = []
         self.iter: int
@@ -192,7 +191,6 @@ class SimpleTrainer(TrainerBase):
     either subclass TrainerBase and implement your own `run_step`,
     or write your own training loop.
     """
-
     def __init__(self, model, data_loader, optimizer):
         """
         Args:
@@ -250,12 +248,7 @@ class SimpleTrainer(TrainerBase):
         """
         self.optimizer.step()
 
-    def _write_metrics(
-        self,
-        loss_dict: Dict[str, torch.Tensor],
-        data_time: float,
-        prefix: str = "",
-    ):
+    def _write_metrics(self, loss_dict: Dict[str, torch.Tensor], data_time: float, prefix: str = "",):
         """
         Args:
             loss_dict (dict): dict of scalar losses
@@ -267,9 +260,9 @@ class SimpleTrainer(TrainerBase):
         # Gather metrics among all workers for logging
         # This assumes we do DDP-style training, which is currently the only
         # supported method in detectron2.
-        all_metrics_dict = comm.gather(metrics_dict)
+        all_metrics_dict = gather(metrics_dict)
 
-        if comm.is_main_process():
+        if is_main_process():
             storage = get_event_storage()
 
             # data_time among workers can have high variance. The actual latency
@@ -295,10 +288,8 @@ class SimpleTrainer(TrainerBase):
 
 class AMPTrainer(SimpleTrainer):
     """
-    Like :class:`SimpleTrainer`, but uses PyTorch's native automatic mixed precision
-    in the training loop.
+    Like :class:`SimpleTrainer`, but uses PyTorch's native automatic mixed precision in the training loop.
     """
-
     def __init__(self, model, data_loader, optimizer, grad_scaler=None):
         """
         Args:

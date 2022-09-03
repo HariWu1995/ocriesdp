@@ -2,7 +2,7 @@
 from typing import List
 import torch
 
-from detectron2.layers import nonzero_tuple
+from layers import nonzero_tuple
 
 
 class Matcher(object):
@@ -21,9 +21,7 @@ class Matcher(object):
     (b) a vector of length N containing the labels for each prediction.
     """
 
-    def __init__(
-        self, thresholds: List[float], labels: List[int], allow_low_quality_matches: bool = False
-    ):
+    def __init__(self, thresholds: List[float], labels: List[int], allow_low_quality_matches: bool = False):
         """
         Args:
             thresholds (list): a list of thresholds used to stratify predictions

@@ -9,10 +9,10 @@ from itertools import chain
 import pycocotools.mask as mask_util
 from PIL import Image
 
-from detectron2.structures import BoxMode
-from detectron2.utils.comm import get_world_size
-from detectron2.utils.file_io import PathManager
-from detectron2.utils.logger import setup_logger
+from structures import BoxMode
+from utils.io import PathManager
+from utils.logger import setup_logger
+from utils.comm.multi_gpu import get_world_size
 
 try:
     import cv2  # noqa
@@ -293,8 +293,9 @@ if __name__ == "__main__":
     parser.add_argument("gt_dir")
     parser.add_argument("--type", choices=["instance", "semantic"], default="instance")
     args = parser.parse_args()
-    from detectron2.data.catalog import Metadata
-    from detectron2.utils.visualizer import Visualizer
+    
+    from data.catalog import Metadata
+    from utils.visualizer import Visualizer
     from cityscapesscripts.helpers.labels import labels
 
     logger = setup_logger(name=__name__)
