@@ -4,6 +4,8 @@ import torch
 from torch import nn, distributed
 from torch.nn import functional as F
 
+from utils.comm.multi_gpu import get_world_size
+
 
 EPS = 1e-7
 
@@ -21,6 +23,7 @@ def sigmoid_offset(x, offset=True):
         return x.sigmoid() * 2 - 0.5
     else:
         return x.sigmoid()
+
 
 def inverse_sigmoid_offset(x, offset=True):
     if offset:
@@ -50,15 +53,7 @@ def logsumexp(tensor: torch.Tensor, dim: int = -1, keepdim: bool = False) -> tor
     return max_score + (stable_vec.exp().sum(dim, keepdim=keepdim)).log()
 
 
-def get_world_size() -> int:
-    if not distributed.is_available():
-        return 1
-    if not distributed.is_initialized():
-        return 1
-    return distributed.get_world_size()
-
-
-def reduce_sum(tensor):
+def reduce_sum(tensor: torch.Tensor):
     world_size = get_world_size()
     if world_size < 2:
         return tensor
@@ -67,13 +62,13 @@ def reduce_sum(tensor):
     return tensor
 
 
-def reduce_mean(tensor):
+def reduce_mean(tensor: torch.Tensor):
     num_gpus = get_world_size()
     total = reduce_sum(tensor)
     return total.float() / num_gpus
 
 
-def aligned_bilinear(tensor, factor):
+def aligned_bilinear(tensor: torch.Tensor, factor):
     assert tensor.dim() == 4
     assert factor >= 1
     assert isinstance(factor, int)

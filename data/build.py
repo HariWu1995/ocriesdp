@@ -60,9 +60,7 @@ def filter_images_with_only_crowd_annotations(dataset_dicts):
     num_after = len(dataset_dicts)
     logger = logging.getLogger(__name__)
     logger.info(
-        "Removed {} images with no usable annotations. {} images left.".format(
-            num_before - num_after, num_after
-        )
+        f"Removed {num_before-num_after} images with no usable annotations. {num_after} images left."
     )
     return dataset_dicts
 
@@ -83,9 +81,7 @@ def filter_images_with_few_keypoints(dataset_dicts, min_keypoints_per_image):
         # Each keypoints field has the format [x1, y1, v1, ...], where v is visibility
         annotations = dic["annotations"]
         return sum(
-            (np.array(ann["keypoints"][2::3]) > 0).sum()
-            for ann in annotations
-            if "keypoints" in ann
+            (np.array(ann["keypoints"][2::3]) > 0).sum() for ann in annotations if "keypoints" in ann
         )
 
     dataset_dicts = [
@@ -94,9 +90,7 @@ def filter_images_with_few_keypoints(dataset_dicts, min_keypoints_per_image):
     num_after = len(dataset_dicts)
     logger = logging.getLogger(__name__)
     logger.info(
-        "Removed {} images with fewer than {} keypoints.".format(
-            num_before - num_after, min_keypoints_per_image
-        )
+        f"Removed {num_before-num_after} images with fewer than {min_keypoints_per_image} keypoints."
     )
     return dataset_dicts
 
@@ -145,12 +139,12 @@ def load_proposals_into_dataset(dataset_dicts, proposal_file):
         i = id_to_index[str(record["image_id"])]
 
         boxes = proposals["boxes"][i]
-        objectness_logits = proposals["objectness_logits"][i]
+        obj_logits = proposals["objectness_logits"][i]
         # Sort the proposals in descending order of the scores
-        inds = objectness_logits.argsort()[::-1]
+        inds = obj_logits.argsort()[::-1]
         record["proposal_boxes"] = boxes[inds]
-        record["proposal_objectness_logits"] = objectness_logits[inds]
         record["proposal_bbox_mode"] = bbox_mode
+        record["proposal_objectness_logits"] = obj_logits[inds]
 
     return dataset_dicts
 
@@ -166,9 +160,8 @@ def print_instances_class_histogram(dataset_dicts, class_names):
     histogram = np.zeros((num_classes,), dtype=np.int)
     for entry in dataset_dicts:
         annos = entry["annotations"]
-        classes = np.asarray(
-            [x["category_id"] for x in annos if not x.get("iscrowd", 0)], dtype=np.int
-        )
+        classes = np.array([x["category_id"] 
+                        for x in annos if not x.get("iscrowd", 0)], dtype=np.int)
         if len(classes):
             assert classes.min() >= 0, f"Got an invalid category_id={classes.min()}"
             assert (
@@ -201,8 +194,7 @@ def print_instances_class_histogram(dataset_dicts, class_names):
     )
     log_first_n(
         logging.INFO,
-        "Distribution of instances among all {} categories:\n".format(num_classes)
-        + colored(table, "cyan"),
+        f"Distribution of instances among all {num_classes} categories:\n" + colored(table, "cyan"),
         key="message",
     )
 
@@ -257,9 +249,8 @@ def get_detection_dataset_dicts(names, filter_empty=True, min_keypoints=0, propo
     return dataset_dicts
 
 
-def build_batch_data_loader(
-    dataset, sampler, total_batch_size, *, aspect_ratio_grouping=False, num_workers=0
-):
+def build_batch_data_loader(dataset, sampler, total_batch_size, *, 
+                            aspect_ratio_grouping=False, num_workers=0):
     """
     Build a batched dataloader for training.
 
@@ -274,11 +265,8 @@ def build_batch_data_loader(
             GPU. Each element in the list comes from the dataset.
     """
     world_size = get_world_size()
-    assert (
-        total_batch_size > 0 and total_batch_size % world_size == 0
-    ), "Total batch size ({}) must be divisible by the number of gpus ({}).".format(
-        total_batch_size, world_size
-    )
+    assert (total_batch_size > 0) and (total_batch_size % world_size == 0), \
+        f"Total batch size ({total_batch_size}) must be divisible by the number of gpus ({world_size})."
 
     batch_size = total_batch_size // world_size
     if aspect_ratio_grouping:
@@ -291,8 +279,9 @@ def build_batch_data_loader(
             worker_init_fn=worker_init_reset_seed,
         )  # yield individual mapped dict
         return AspectRatioGroupedDataset(data_loader, batch_size)
+
     else:
-        batch_sampler = torch.utils.data.sampler.BatchSampler(
+        batch_sampler = torch.utils.data.BatchSampler(
             sampler, batch_size, drop_last=True
         )  # drop_last so the batch always have the same size
         return torch.utils.data.DataLoader(
@@ -345,9 +334,8 @@ def _train_loader_from_config(cfg, mapper=None, *, dataset=None, sampler=None):
 
 # TODO can allow dataset as an iterable or IterableDataset to make this function more general
 @configurable(from_config=_train_loader_from_config)
-def build_detection_train_loader(
-    dataset, *, mapper, sampler=None, total_batch_size, aspect_ratio_grouping=True, num_workers=0
-):
+def build_detection_train_loader(dataset, *, mapper, sampler=None, total_batch_size, 
+                                    aspect_ratio_grouping=True, num_workers=0):
     """
     Build a dataloader for object detection with some default features.
     This interface is experimental.

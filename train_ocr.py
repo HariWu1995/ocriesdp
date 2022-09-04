@@ -31,7 +31,7 @@ datasets_ocr = [
 ]
 
 # Load data
-from data.datasets import load_dataset
+from datasets import load_dataset
 from models.heads.multitask.PGNet.dataloader import Dataloader
 
 for data_name in datasets_ocr:
